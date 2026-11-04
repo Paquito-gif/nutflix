@@ -247,6 +247,18 @@
   .tempt .tname{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#d8261c;margin-bottom:4px}
   .avatar img{width:88%;height:88%;object-fit:contain;margin-top:8%;display:block}
   .tempt .bubble .btn.info{background:#e6ddd3;color:#1a0f0a}
+  .lbt{flex:0 0 clamp(130px,13vw,160px);background:#17110c;border:1px solid #ffffff14;border-radius:8px;padding:14px 10px 12px;display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;transition:transform .2s,border-color .2s;text-align:center}
+  .lbt:hover{transform:scale(1.05);border-color:#ffd34d55}
+  .lbt.me{border-color:#46d36988;background:#46d36912}
+  .lbt .av{width:64px;height:64px;border-radius:10px;display:grid;place-items:center;overflow:hidden}
+  .lbt .av img{width:88%;height:88%;object-fit:contain}
+  .lbt b{font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lbt-rk{position:absolute;top:6px;left:8px;font-family:"Bebas Neue";font-size:22px;color:var(--muted)}
+  .lbt-sk{font-family:"Bebas Neue";font-size:18px;color:#ffd34d;letter-spacing:.3px}
+  .lbt.more,.lbt.empty{justify-content:center;border-style:dashed}
+  .lbt.empty .lbt-sk{font-family:Inter;font-size:11px;color:var(--muted)}
+  .lbt-all{font-size:13px;font-weight:700;color:var(--muted);margin-left:10px}
+  .lbt-all:hover{color:var(--text)}
   .lb-box{max-width:640px}
   .lb-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);gap:10px;align-items:end;margin:6px 0 16px}
   .lb-pod{background:#0b0806;border:1px solid #ffffff14;border-radius:10px;padding:12px 8px;text-align:center;position:relative}
@@ -419,7 +431,10 @@
       </div>
     </div>
   </div>
-  <div class="rows" id="rows"></div>
+  <div class="rows">
+    <div class="row" id="homeLb"></div>
+    <div id="rows"></div>
+  </div>
   <footer>Nutflix is a parody. No explicit content, just innuendo. Starring HODL, who has never sold a bag or finished a thing in November.</footer>
 </section>
 
@@ -953,7 +968,7 @@ function goBrowse(prof){
   CURRENT = prof;
   $("#meAv").style.background = prof.bg; $("#meAv").innerHTML = prof.img ? `<img src="${prof.img}" alt="">` : "🥜";
   $("#meAv").title = prof.name + " · switch profile"; $("#meAv").style.display = "";
-  loading(()=>{ $("#who").classList.remove("on"); $("#browse").style.display="block"; window.scrollTo(0,0); scheduleTempt(15000); }, `Hey ${prof.name}! Preparing some very… personalized recommendations`);
+  loading(()=>{ $("#who").classList.remove("on"); $("#browse").style.display="block"; window.scrollTo(0,0); scheduleTempt(15000); renderHomeLb(); }, `Hey ${prof.name}! Preparing some very… personalized recommendations`);
 }
 $("#edit").onclick = () => {
   editing = !editing;
@@ -1257,7 +1272,7 @@ async function markWatched(title){
     st.history = [...(st.history||[]), { d:ld(), at:Date.now(), ty:"watch", t }];
     save();
   }
-  renderRewards(); renderAccount();
+  renderRewards(); renderAccount(); renderHomeLb();
   if (first) setTimeout(()=>toast(!st.wallet ? "✅ Daily episode done. Sign in with a wallet to earn"
         : API && REWARD && REWARD.eligible ? `✅ Episode counted · 🔥 ${currentStreak()}-day streak. Open 🥜 Nut Rewards to claim your NFLX`
         : `✅ Episode counted · 🔥 ${currentStreak()}-day streak`), 400);
@@ -1565,10 +1580,7 @@ function nflxSection(w){
 /* ---------- Leaderboard: best current watch streaks ---------- */
 const lbAvatar = r => `<span class="av" style="background:${/^#[0-9a-fA-F]{6}$/.test(r.bg||"") ? r.bg : "#3a3a3a"}"><img src="${avatarImg(r.avatar)}" alt=""></span>`;
 const lbName = r => r.name ? esc(r.name) : esc(r.who);
-async function openLeaderboard(){
-  $("#lb").classList.add("open");
-  const el = $("#lbBody");
-  el.innerHTML = `<h4 style="margin:0 0 6px">🏆 Leaderboard</h4><div class="small">Loading…</div>`;
+async function lbData(){
   let data = null;
   if (API) {
     try { const r = await fetch("/api/leaderboard", { cache:"no-store" }); if (r.ok) data = await r.json(); } catch(_) {}
@@ -1583,6 +1595,30 @@ async function openLeaderboard(){
     }).sort((x,y) => y.streak - x.streak || y.best - x.best), local: true };
     data.players = data.rows.length;
   }
+  return data;
+}
+
+/* home row: top 10 streaks, like a Netflix row */
+async function renderHomeLb(){
+  const el = $("#homeLb"); if (!el) return;
+  const data = await lbData();
+  const rows = (data.rows || []).slice(0, 10);
+  const me = st.wallet ? short(st.wallet.address) : null;
+  const medal = ["🥇","🥈","🥉"];
+  const tiles = rows.map((r, i) => `<button class="lbt ${r.who===me?"me":""}" data-lb>
+      <span class="lbt-rk">${i < 3 ? medal[i] : i+1}</span>${lbAvatar(r)}
+      <b>${lbName(r)}${r.who===me ? " · you" : ""}</b><span class="lbt-sk">🔥 ${r.streak} day${r.streak===1?"":"s"}</span></button>`).join("");
+  el.innerHTML = `<h3>🏆 Top Streaks <button class="lbt-all" data-lb>See all ›</button></h3>
+    <div class="track">${tiles || `<button class="lbt empty" data-lb>${lbAvatar({})}<b>Nobody yet</b><span class="lbt-sk">Watch today and take #1</span></button>`}
+      ${rows.length ? `<button class="lbt more" data-lb><span style="font-size:30px">🏆</span><b>Full leaderboard</b><span class="lbt-sk">${data.players} player${data.players===1?"":"s"}</span></button>` : ""}</div>`;
+}
+$("#homeLb").addEventListener("click", e => { if (e.target.closest("[data-lb]")) openLeaderboard(); });
+
+async function openLeaderboard(){
+  $("#lb").classList.add("open");
+  const el = $("#lbBody");
+  el.innerHTML = `<h4 style="margin:0 0 6px">🏆 Leaderboard</h4><div class="small">Loading…</div>`;
+  const data = await lbData();
   const me = st.wallet ? short(st.wallet.address) : null;
   const rows = data.rows || [];
   if (!rows.length) {
