@@ -80,7 +80,14 @@ async function load(){
   try { res = await fetch("/api/admin/users", { headers: { "x-admin-key": KEY }, cache: "no-store" }); }
   catch (e) { $("#err").textContent = "Can't reach the API."; return; }
   if (res.status === 401) { sessionStorage.removeItem("nutflix_admin"); KEY = ""; show(false); $("#err").textContent = "Wrong key."; return; }
-  if (res.status === 503) { show(false); $("#err").textContent = "The D1 database isn't bound to this project yet."; return; }
+  if (res.status === 503) {
+    const e = (await res.json().catch(() => ({}))).error;
+    show(false);
+    $("#err").textContent = e === "admin_key_not_set"
+      ? "The Worker doesn't see an ADMIN_KEY yet. Add it in Settings → Variables and secrets, then redeploy."
+      : "The D1 database isn't bound to this project yet.";
+    return;
+  }
   if (!res.ok) { $("#err").textContent = "Error " + res.status; return; }
   DATA = await res.json();
   try { sessionStorage.setItem("nutflix_admin", KEY); } catch (e) {}

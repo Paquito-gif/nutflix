@@ -124,7 +124,8 @@ function timingSafeEqual(a, b) {
 export async function onRequest({ request, env, params }) {
   const route = [].concat(params.route || []).join("/");
   const method = request.method;
-  if (route === "health") return json({ ok: true, configured: !!env.DB, today: utcDay(), serverTime: Date.now() });
+  const adminKey = typeof env.ADMIN_KEY === "string" ? env.ADMIN_KEY.trim() : "";
+  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, today: utcDay(), serverTime: Date.now() });
   if (!env.DB) return fail(503, "database_not_configured");
   const db = env.DB;
 
@@ -172,7 +173,8 @@ export async function onRequest({ request, env, params }) {
 
     // 3. admin listing
     if (route === "admin/users" && method === "GET") {
-      if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("x-admin-key") || "", env.ADMIN_KEY)) return fail(401, "unauthorized");
+      if (!adminKey) return fail(503, "admin_key_not_set");
+      if (!timingSafeEqual((request.headers.get("x-admin-key") || "").trim(), adminKey)) return fail(401, "unauthorized");
       const { results } = await db.prepare("SELECT * FROM users ORDER BY last_seen DESC LIMIT 1000").all();
       return json({
         today: utcDay(),
