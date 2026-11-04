@@ -1107,7 +1107,7 @@ function loading(done, text, still){
    - "local":  this browser only, one saved account per wallet
    ===================================================================== */
 const MIN_HOLD = 1000, STARTER_BAG = 1000;
-let API = false, SKEW = 0, SESSION = null, PLAYING = "", PAYINFO = null, PAYOUTS = [], REWARD = null;
+let API = false, SKEW = 0, SESSION = null, PLAYING = "", PAYINFO = null, PAYOUTS = [], REWARD = null, NUTINFO = null;
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const localDay = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 // with the backend, "today" is the server's UTC day so streaks can't be gamed with the clock
@@ -1195,7 +1195,7 @@ function renderAll(){ renderRewards(); renderSettings(); renderLogin(); renderPr
     if (!res.ok) return;
     const j = await res.json();
     if (!j.ok || !j.configured) return;
-    API = true; SKEW = j.serverTime - Date.now(); PAYINFO = j.payouts || null;
+    API = true; SKEW = j.serverTime - Date.now(); PAYINFO = j.payouts || null; NUTINFO = j.nut || null;
   } catch(e) { return; }
   SESSION = lsGet(SKEY, null);
   if (SESSION) {
@@ -1229,7 +1229,15 @@ function renderAll(){ renderRewards(); renderSettings(); renderLogin(); renderPr
 const nextStreak = () => st.claimed === ld() ? st.streak : (st.claimed === yday() ? st.streak + 1 : 1);
 const mult = () => Math.min(1 + (nextStreak() - 1) * 0.1, 2);
 const reward = () => Math.round(st.bal * 0.01 * mult());
-const currentStreak = () => (st.claimed === ld() || st.claimed === yday()) ? st.streak : 0;
+// streak = consecutive days with at least one episode (same rule as the leaderboard);
+// still alive today if the last episode was yesterday
+const currentStreak = () => {
+  const set = new Set(st.watchLog || []);
+  const prev = d => new Date(Date.parse(d) - 864e5).toISOString().slice(0,10);
+  let n = 0, d = set.has(ld()) ? ld() : prev(ld());
+  while (set.has(d)) { n++; d = prev(d); }
+  return n;
+};
 
 let toastT;
 function toast(msg){
@@ -1250,7 +1258,9 @@ async function markWatched(title){
     save();
   }
   renderRewards(); renderAccount();
-  if (first) setTimeout(()=>toast(st.wallet ? (API ? "✅ Episode counted. Open 🥜 Nut Rewards to claim your NFLX" : "✅ Daily episode done. Go claim your $NUT 🥜") : "✅ Daily episode done. Sign in with a wallet to earn"), 400);
+  if (first) setTimeout(()=>toast(!st.wallet ? "✅ Daily episode done. Sign in with a wallet to earn"
+        : API && REWARD && REWARD.eligible ? `✅ Episode counted · 🔥 ${currentStreak()}-day streak. Open 🥜 Nut Rewards to claim your NFLX`
+        : `✅ Episode counted · 🔥 ${currentStreak()}-day streak`), 400);
 }
 const nflxFmt = v => String(Number(v).toFixed(6)).replace(/0+$/,"").replace(/\.$/,"");
 const payEnabled = () => !!(API && PAYINFO && PAYINFO.enabled);
@@ -1321,7 +1331,7 @@ function renderRewardsLive(){
     else if (key < today) cls = "pre";
     return `<span class="${cls} ${key===today?"today":""}" title="Nov ${i+1}">${mark}</span>`;
   }).join("");
-  const tiers = r.tiers || [];
+  const tiers = r.tiers || (NUTINFO && NUTINFO.tiers) || [];
   const tierRows = tiers.map((t,i)=>{
     const nextMin = tiers[i+1] ? tiers[i+1].minUsd : null;
     const on = r.tier && r.tier.key === t.key;
@@ -1343,7 +1353,7 @@ function renderRewardsLive(){
       <div class="nfx">
         <div><b>${r.tier.icon} ${fx(f.tier)}</b><span>${esc(r.tier.name)} tier (${usd(r.usd)})</span></div>
         <div><b>⏳ ${fx(f.time)}</b><span>held ${r.holdDays} day${r.holdDays===1?"":"s"} · +5%/day, max 2x</span></div>
-        <div><b>📺 ${fx(f.watch)}</b><span>${r.videos} video${r.videos===1?"":"s"} · +2% each, max 2x</span></div>
+        <div><b>📺 ${fx(f.watch)}</b><span>${r.videos} video${r.videos===1?"":"s"} total · ${vToday}/3 today · +2% each, max 2x</span></div>
       </div>
       <div class="small" style="margin:8px 0 0">${nflxFmt(PAYINFO ? PAYINFO.perClaim : "0.001")} NFLX × tier × days held × videos${PAYINFO ? `, max ${nflxFmt(PAYINFO.maxPerUser)} NFLX a day` : ""}.</div>
     </div>` : "";
@@ -1370,9 +1380,10 @@ function renderRewardsLive(){
 
     <div class="rw-row" style="display:block">
       <div class="rw-lbl">Today's quest</div>
-      <div class="ck ${watched ? "ok" : ""}"><b>${watched ? "✓" : ""}</b>Watch an episode today <span class="small" style="margin:0 0 0 6px">${vToday}/3 videos counted</span></div>
-      <div class="ck ${r.eligible ? "ok" : ""}"><b>${r.eligible ? "✓" : ""}</b>Hold at least ${usd(r.minUsd || 150)} of $NUT</div>
+      <div class="ck ${watched ? "ok" : ""}"><b>${watched ? "✓" : ""}</b>Watch 1 episode today</div>
+      <div class="ck ${r.eligible ? "ok" : ""}"><b>${r.eligible ? "✓" : ""}</b>Hold at least ${usd(r.minUsd || (NUTINFO && NUTINFO.minUsd) || 150)} of $NUT</div>
       <div class="ck ${claimed ? "ok" : ""}"><b>${claimed ? "✓" : ""}</b>Claim your daily NFLX</div>
+      ${watched && vToday < 3 ? `<div class="small" style="margin:6px 0 0">Optional: watch ${3 - vToday} more today to boost your 📺 bonus (+2% each, up to 3 videos a day).</div>` : ""}
     </div>
 
     <div class="rw-row" style="display:block">
