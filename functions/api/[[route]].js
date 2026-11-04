@@ -1,0 +1,259 @@
+// Nutflix API — Cloudflare Pages Functions + D1.
+//
+// Every route lives under /api/*. Accounts are keyed by wallet address and
+// proven with a signed, single-use sign-in message. The server owns the
+// reward rules (watch, claim, starter bag), so the browser can't fake them.
+//
+// Bindings (Cloudflare dashboard → Pages project → Settings):
+//   DB         D1 database (tables are created on first request)
+//   ADMIN_KEY  secret used by /admin.html to list every account
+
+import { recoverPersonalSign } from "../_lib/evm.js";
+
+const MIN_HOLD = 1000;            // $NUT you must hold to claim
+const STARTER_BAG = 1000;         // one-time welcome bag
+const MAX_PROFILES = 4;
+const NONCE_TTL_MS = 10 * 60e3;   // sign-in message validity
+const SESSION_TTL_MS = 30 * 864e5;
+const AVATARS = ["hodl", "peachy", "righty", "big-egg", "incognito", "sister", "paper-pete", "slick-tissy"];
+const MAX_HISTORY = 120;
+
+const enc = new TextEncoder();
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+const fail = (status, error) => json({ error }, status);
+const utcDay = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
+const hex = u => [...u].map(b => b.toString(16).padStart(2, "0")).join("");
+const randomHex = n => hex(crypto.getRandomValues(new Uint8Array(n)));
+
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function b58decode(s) {
+  let bytes = [0];
+  for (const c of s) {
+    let carry = B58.indexOf(c);
+    if (carry < 0) throw new Error("bad base58");
+    for (let j = 0; j < bytes.length; j++) { carry += bytes[j] * 58; bytes[j] = carry & 255; carry >>= 8; }
+    while (carry) { bytes.push(carry & 255); carry >>= 8; }
+  }
+  for (const c of s) { if (c === "1") bytes.push(0); else break; }
+  return new Uint8Array(bytes.reverse());
+}
+const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+function normalizeAddress(chain, address) {
+  if (typeof address !== "string") return null;
+  if (chain === "Ethereum") return /^0x[0-9a-fA-F]{40}$/.test(address) ? address.toLowerCase() : null;
+  if (chain === "Solana") {
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return null;
+    try { return b58decode(address).length === 32 ? address : null; } catch { return null; }
+  }
+  return null;
+}
+
+async function verifyEd25519(pubKey, sig, msg) {
+  for (const alg of [{ name: "Ed25519" }, { name: "NODE-ED25519", namedCurve: "NODE-ED25519" }]) {
+    try {
+      const key = await crypto.subtle.importKey("raw", pubKey, alg, false, ["verify"]);
+      return await crypto.subtle.verify(alg, key, sig, msg);
+    } catch { /* try the next algorithm name */ }
+  }
+  return false;
+}
+
+async function signatureIsValid(chain, address, message, signature) {
+  try {
+    if (chain === "Solana") return await verifyEd25519(b58decode(address), fromB64(signature), enc.encode(message));
+    if (chain === "Ethereum") return recoverPersonalSign(message, signature) === address;
+  } catch { /* malformed input */ }
+  return false;
+}
+
+/* ---------- storage ---------- */
+let schemaReady = false;
+async function ensureSchema(db) {
+  if (schemaReady) return;
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS users (
+      address TEXT PRIMARY KEY, chain TEXT NOT NULL, created_at INTEGER NOT NULL,
+      last_seen INTEGER NOT NULL, state TEXT NOT NULL)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS nonces (
+      nonce TEXT PRIMARY KEY, address TEXT NOT NULL, chain TEXT NOT NULL,
+      message TEXT NOT NULL, created_at INTEGER NOT NULL)`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY, address TEXT NOT NULL, expires_at INTEGER NOT NULL)`),
+  ]);
+  schemaReady = true;
+}
+
+const blankState = () => ({
+  bal: 0, earned: 0, watched: null, claimed: null, streak: 0, best: 0,
+  claims: 0, starter: false, watchLog: [], history: [], profiles: [],
+});
+const readState = row => Object.assign(blankState(), JSON.parse(row.state || "{}"));
+async function writeState(db, address, state) {
+  await db.prepare("UPDATE users SET state = ?, last_seen = ? WHERE address = ?")
+    .bind(JSON.stringify(state), Date.now(), address).run();
+}
+function account(row, state) {
+  return { address: row.address, chain: row.chain, createdAt: row.created_at, state, today: utcDay(), serverTime: Date.now() };
+}
+const pushHistory = (state, entry) => { state.history = [...state.history, entry].slice(-MAX_HISTORY); };
+
+async function sessionUser(db, request) {
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!/^[0-9a-f]{64}$/.test(token)) return null;
+  const s = await db.prepare("SELECT address, expires_at FROM sessions WHERE token = ?").bind(token).first();
+  if (!s || s.expires_at < Date.now()) return null;
+  const row = await db.prepare("SELECT * FROM users WHERE address = ?").bind(s.address).first();
+  return row ? { row, token } : null;
+}
+
+async function body(request) {
+  const text = await request.text();
+  if (text.length > 16384) throw Object.assign(new Error("too large"), { status: 413 });
+  try { return text ? JSON.parse(text) : {}; } catch { throw Object.assign(new Error("bad json"), { status: 400 }); }
+}
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+/* ---------- routes ---------- */
+export async function onRequest({ request, env, params }) {
+  const route = [].concat(params.route || []).join("/");
+  const method = request.method;
+  if (route === "health") return json({ ok: true, configured: !!env.DB, today: utcDay(), serverTime: Date.now() });
+  if (!env.DB) return fail(503, "database_not_configured");
+  const db = env.DB;
+
+  try {
+    await ensureSchema(db);
+
+    // 1. ask for a sign-in message
+    if (route === "nonce" && method === "POST") {
+      const { chain, address: rawAddress } = await body(request);
+      const address = normalizeAddress(chain, rawAddress);
+      if (!address) return fail(400, "bad_address");
+      const nonce = randomHex(16);
+      const host = new URL(request.url).host;
+      const message = `Nutflix wants you to sign in with this wallet.\n\nAddress: ${address}\nDomain: ${host}\nNonce: ${nonce}\nIssued: ${new Date().toISOString()}\n\nSigning is free and does not send any transaction.`;
+      await db.batch([
+        db.prepare("DELETE FROM nonces WHERE created_at < ?").bind(Date.now() - NONCE_TTL_MS),
+        db.prepare("INSERT INTO nonces (nonce, address, chain, message, created_at) VALUES (?, ?, ?, ?, ?)")
+          .bind(nonce, address, chain, message, Date.now()),
+      ]);
+      return json({ nonce, message });
+    }
+
+    // 2. prove the wallet with the signed message → session
+    if (route === "verify" && method === "POST") {
+      const { nonce, signature } = await body(request);
+      if (typeof nonce !== "string" || typeof signature !== "string") return fail(400, "bad_request");
+      const n = await db.prepare("SELECT * FROM nonces WHERE nonce = ?").bind(nonce).first();
+      if (!n) return fail(400, "unknown_nonce");
+      await db.prepare("DELETE FROM nonces WHERE nonce = ?").bind(nonce).run();   // single use
+      if (n.created_at < Date.now() - NONCE_TTL_MS) return fail(400, "expired_nonce");
+      if (!(await signatureIsValid(n.chain, n.address, n.message, signature))) return fail(401, "bad_signature");
+
+      const now = Date.now();
+      await db.prepare(`INSERT INTO users (address, chain, created_at, last_seen, state) VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(address) DO UPDATE SET last_seen = excluded.last_seen`)
+        .bind(n.address, n.chain, now, now, JSON.stringify(blankState())).run();
+      const token = randomHex(32);
+      await db.batch([
+        db.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now),
+        db.prepare("INSERT INTO sessions (token, address, expires_at) VALUES (?, ?, ?)").bind(token, n.address, now + SESSION_TTL_MS),
+      ]);
+      const row = await db.prepare("SELECT * FROM users WHERE address = ?").bind(n.address).first();
+      return json({ token, ...account(row, readState(row)) });
+    }
+
+    // 3. admin listing
+    if (route === "admin/users" && method === "GET") {
+      if (!env.ADMIN_KEY || !timingSafeEqual(request.headers.get("x-admin-key") || "", env.ADMIN_KEY)) return fail(401, "unauthorized");
+      const { results } = await db.prepare("SELECT * FROM users ORDER BY last_seen DESC LIMIT 1000").all();
+      return json({
+        today: utcDay(),
+        users: results.map(r => {
+          const s = readState(r);
+          return { address: r.address, chain: r.chain, createdAt: r.created_at, lastSeen: r.last_seen,
+            watched: s.watched, days: s.watchLog.length, streak: s.streak, best: s.best, claims: s.claims,
+            bal: s.bal, earned: s.earned, profiles: s.profiles.length };
+        }),
+      });
+    }
+
+    // everything below needs a session
+    const me = await sessionUser(db, request);
+    if (!me) return fail(401, "not_signed_in");
+    const { row } = me;
+    const state = readState(row);
+    const today = utcDay(), yesterday = utcDay(Date.now() - 864e5);
+
+    if (route === "me" && method === "GET") {
+      await db.prepare("UPDATE users SET last_seen = ? WHERE address = ?").bind(Date.now(), row.address).run();
+      return json(account(row, state));
+    }
+
+    if (route === "logout" && method === "POST") {
+      await db.prepare("DELETE FROM sessions WHERE token = ?").bind(me.token).run();
+      return json({ ok: true });
+    }
+
+    if (route === "watch" && method === "POST") {
+      const { title } = await body(request);
+      const t = String(title || "an episode").slice(0, 80);
+      if (state.watched !== today) {
+        state.watched = today;
+        state.watchLog = [...state.watchLog.filter(d => d !== today), today].slice(-366);
+      }
+      pushHistory(state, { d: today, at: Date.now(), ty: "watch", t });
+      await writeState(db, row.address, state);
+      return json(account(row, state));
+    }
+
+    if (route === "starter" && method === "POST") {
+      if (state.starter) return fail(409, "already_claimed");
+      state.starter = true; state.bal += STARTER_BAG;
+      pushHistory(state, { d: today, at: Date.now(), ty: "starter", n: STARTER_BAG });
+      await writeState(db, row.address, state);
+      return json(account(row, state));
+    }
+
+    if (route === "claim" && method === "POST") {
+      if (state.claimed === today) return fail(409, "already_claimed_today");
+      if (state.watched !== today) return fail(409, "watch_first");
+      if (state.bal < MIN_HOLD) return fail(409, "hold_more");
+      const streak = state.claimed === yesterday ? state.streak + 1 : 1;
+      const mult = Math.min(1 + (streak - 1) * 0.1, 2);
+      const reward = Math.round(state.bal * 0.01 * mult);
+      Object.assign(state, { streak, best: Math.max(state.best, streak), claimed: today, claims: state.claims + 1,
+        bal: state.bal + reward, earned: state.earned + reward });
+      pushHistory(state, { d: today, at: Date.now(), ty: "claim", n: reward, s: streak });
+      await writeState(db, row.address, state);
+      return json({ reward, ...account(row, state) });
+    }
+
+    if (route === "profiles" && method === "PUT") {
+      const { profiles } = await body(request);
+      if (!Array.isArray(profiles) || profiles.length > MAX_PROFILES) return fail(400, "bad_profiles");
+      const clean = [];
+      for (const p of profiles) {
+        const name = String(p?.name || "").trim().replace(/\s+/g, " ").slice(0, 16);
+        if (!name || !AVATARS.includes(p?.avatar) || !/^#[0-9a-fA-F]{6}$/.test(p?.bg || "")) return fail(400, "bad_profile");
+        clean.push({ id: String(p.id || randomHex(4)).slice(0, 20), name, avatar: p.avatar, bg: p.bg });
+      }
+      state.profiles = clean;
+      await writeState(db, row.address, state);
+      return json(account(row, state));
+    }
+
+    return fail(404, "not_found");
+  } catch (e) {
+    if (e.status) return fail(e.status, e.message);
+    console.error("nutflix api", e);
+    return fail(500, "server_error");
+  }
+}

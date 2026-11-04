@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nutflix Admin</title>
+<link rel="icon" href="hodl.webp" type="image/webp">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b0806;--panel:#17110c;--text:#f3ece4;--muted:#a8998a;--red:#d8261c;--ok:#46d369}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;padding:24px 16px;min-height:100vh}
+  button,input{font:inherit;color:inherit}
+  .wrap{max-width:1100px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+  .logo{font-family:"Bebas Neue";font-size:40px;color:var(--red);letter-spacing:2px;text-decoration:none}
+  .logo small{font-family:Inter;font-size:13px;letter-spacing:2px;color:var(--muted);margin-left:8px;font-weight:800}
+  .card{background:var(--panel);border:1px solid #ffffff14;border-radius:10px;padding:24px}
+  .login{max-width:420px;margin:12vh auto 0}
+  .login h1{font-size:24px;margin-bottom:6px}
+  .login p{color:var(--muted);font-size:14px;margin-bottom:16px;line-height:1.5}
+  input{width:100%;background:var(--bg);border:1px solid #ffffff33;border-radius:6px;padding:12px 14px;font-size:16px}
+  input:focus{outline:none;border-color:var(--text)}
+  .btn{background:var(--red);color:#fff;border:0;border-radius:5px;padding:11px 18px;font-weight:800;cursor:pointer}
+  .btn.ghost{background:#ffffff1a}
+  .err{color:#ff8a7a;font-size:13px;min-height:18px;margin-top:8px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .stats div{background:var(--panel);border:1px solid #ffffff14;border-radius:8px;padding:14px}
+  .stats b{display:block;font-family:"Bebas Neue";font-size:32px;line-height:1}
+  .stats span{font-size:12px;color:var(--muted)}
+  .tools{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .tools input{max-width:320px}
+  .table{overflow-x:auto;border:1px solid #ffffff14;border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #ffffff10}
+  th{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);background:#120d09;position:sticky;top:0}
+  td.addr{font-family:ui-monospace,monospace}
+  .tag{display:inline-block;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px}
+  .tag.today{background:#46d36922;color:var(--ok)}
+  .muted{color:var(--muted)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="/">NUTFLIX<small>ADMIN</small></a>
+    <div id="who" class="hide"><button class="btn ghost" id="refresh">↻ Refresh</button> <button class="btn ghost" id="out">Lock</button></div>
+  </header>
+
+  <div class="card login" id="login">
+    <h1>Admin access</h1>
+    <p>Enter the <b>ADMIN_KEY</b> you set in Cloudflare (Pages project → Settings → Variables and secrets).</p>
+    <input id="key" type="password" placeholder="Admin key" autocomplete="current-password">
+    <div class="err" id="err"></div>
+    <button class="btn" id="go" style="margin-top:8px">Unlock</button>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="stats" id="stats"></div>
+    <div class="tools"><input id="q" placeholder="Search an address…"><span class="muted" id="count"></span></div>
+    <div class="table"><table>
+      <thead><tr><th>Wallet</th><th>Chain</th><th>Joined</th><th>Last seen</th><th>Last watched</th><th>Days</th><th>Streak</th><th>Best</th><th>Claims</th><th>$NUT</th><th>Earned</th><th>Profiles</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <p class="muted" style="font-size:12px;margin-top:12px;line-height:1.5">Every account here signed a one-time sign-in message that the server verified, so each address is controlled by whoever signed in. Watch and claim dates come from the server clock (UTC).</p>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+const fmt = n => Math.floor(n || 0).toLocaleString("en-US");
+const date = t => t ? new Date(t).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "—";
+let KEY = sessionStorage.getItem("nutflix_admin") || "", DATA = null;
+
+async function load(){
+  $("#err").textContent = "";
+  let res;
+  try { res = await fetch("/api/admin/users", { headers: { "x-admin-key": KEY }, cache: "no-store" }); }
+  catch (e) { $("#err").textContent = "Can't reach the API."; return; }
+  if (res.status === 401) { sessionStorage.removeItem("nutflix_admin"); KEY = ""; show(false); $("#err").textContent = "Wrong key."; return; }
+  if (res.status === 503) { show(false); $("#err").textContent = "The D1 database isn't bound to this project yet."; return; }
+  if (!res.ok) { $("#err").textContent = "Error " + res.status; return; }
+  DATA = await res.json();
+  try { sessionStorage.setItem("nutflix_admin", KEY); } catch (e) {}
+  show(true); render();
+}
+function show(on){ $("#login").classList.toggle("hide", on); $("#app").classList.toggle("hide", !on); $("#who").classList.toggle("hide", !on); }
+function render(){
+  const q = $("#q").value.trim().toLowerCase();
+  const users = DATA.users.filter(u => !q || u.address.toLowerCase().includes(q));
+  const all = DATA.users, today = DATA.today;
+  $("#stats").innerHTML = [
+    [all.length, "Accounts"],
+    [all.filter(u => u.chain === "Solana").length + " / " + all.filter(u => u.chain === "Ethereum").length, "Solana / Ethereum"],
+    [all.filter(u => u.watched === today).length, "Watched today"],
+    [Math.max(0, ...all.map(u => u.streak)), "Longest current streak"],
+    [fmt(all.reduce((a, u) => a + u.earned, 0)), "$NUT paid out"],
+  ].map(([b, s]) => `<div><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join("");
+  $("#count").textContent = `${users.length} shown`;
+  $("#rows").innerHTML = users.map(u => `<tr>
+    <td class="addr" title="${esc(u.address)}">${esc(u.address)}</td>
+    <td>${esc(u.chain)}</td><td>${date(u.createdAt)}</td><td>${date(u.lastSeen)}</td>
+    <td>${u.watched === today ? '<span class="tag today">today</span>' : esc(u.watched || "never")}</td>
+    <td>${u.days}</td><td>${u.streak}</td><td>${u.best}</td><td>${u.claims}</td><td>${fmt(u.bal)}</td><td>${fmt(u.earned)}</td><td>${u.profiles}</td>
+  </tr>`).join("") || `<tr><td colspan="12" class="muted">No accounts yet.</td></tr>`;
+}
+$("#go").onclick = () => { KEY = $("#key").value.trim(); if (KEY) load(); };
+$("#key").onkeydown = e => { if (e.key === "Enter") $("#go").click(); };
+$("#q").oninput = () => DATA && render();
+$("#refresh").onclick = load;
+$("#out").onclick = () => { sessionStorage.removeItem("nutflix_admin"); KEY = ""; DATA = null; show(false); };
+if (KEY) load();
+</script>
+</body>
+</html>

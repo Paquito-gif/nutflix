@@ -217,6 +217,44 @@
   .tempt .tname{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#d8261c;margin-bottom:4px}
   .avatar img{width:88%;height:88%;object-fit:contain;margin-top:8%;display:block}
   .tempt .bubble .btn.info{background:#e6ddd3;color:#1a0f0a}
+  .ac-box{max-width:620px}
+  .ac-head{display:flex;gap:16px;align-items:center}
+  .ac-art{width:86px;flex:0 0 86px}
+  .ac-art img,.ac-art svg{width:100%;height:auto;display:block}
+  .ac-addr{display:flex;align-items:center;gap:8px;font-weight:800;font-size:18px;margin-top:4px}
+  .ac-copy{color:var(--muted);font-size:16px;padding:2px 6px;border-radius:4px}
+  .ac-copy:hover{color:var(--text);background:#ffffff14}
+  .ac-badge{display:inline-block;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;letter-spacing:.3px}
+  .ac-badge.ok{background:#46d36922;color:#46d369}
+  .ac-badge.demo{background:#ffd34d22;color:#ffd34d}
+  .ac-phase{margin:14px 0 10px;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--red)}
+  .ac-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .ac-stats div{background:#0b0806;border:1px solid #ffffff12;border-radius:8px;padding:12px 10px}
+  .ac-stats b{display:block;font-family:"Bebas Neue";font-size:26px;line-height:1;letter-spacing:.5px}
+  .ac-stats span{font-size:11px;color:var(--muted)}
+  .cal-h,.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .cal-h{margin:8px 0 4px}
+  .cal-h span{font-size:10px;color:var(--muted);text-align:center;font-weight:800}
+  .cal-d.pre{background:#16110d}
+  .cal{max-width:460px}.cal-h{max-width:460px}
+  .cal-d{aspect-ratio:1.15;border-radius:6px;background:#1f1812;position:relative;display:grid;place-items:center}
+  .cal-d i{position:absolute;top:3px;left:5px;font-style:normal;font-size:10px;color:#ffffff88}
+  .cal-d b{font-size:15px}
+  .cal-d.fut{background:#120d09;opacity:.55}
+  .cal-d.ok{background:#1f4d2a}
+  .cal-d.nut{background:#7a1a12}
+  .cal-d.miss{background:#2a2420}
+  .cal-d.miss b{color:#6e6256;font-size:12px}
+  .cal-d.today{outline:2px solid var(--text);outline-offset:-2px}
+  .cal-key{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--muted)}
+  .cal-key .k{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .k.nut{background:#7a1a12}.k.ok{background:#1f4d2a}.k.miss{background:#2a2420}
+  .ac-hist{display:flex;flex-direction:column;gap:2px;margin-top:6px;max-height:220px;overflow-y:auto}
+  .ac-hist div{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:6px;background:#0b0806;font-size:13px}
+  .ac-hist time{color:var(--muted);white-space:nowrap;font-size:12px}
+  .ac-empty{text-align:center;padding:10px 0}
+  .ac-empty .ac-art{margin:0 auto 10px;width:110px}
+  @media (max-width:560px){.ac-stats{grid-template-columns:repeat(2,1fr)}.ac-art{width:64px;flex-basis:64px}}
   .avatar.add{border:3px dashed #555;color:#777;font-weight:300}
   .profile .avatar.add span{font-size:clamp(44px,5vw,60px);line-height:1}
   .profile:hover .avatar.add{border-color:var(--text);color:var(--text)}
@@ -251,6 +289,7 @@
   <div class="hdr-r">
     <span class="tag" id="nnn">No Nut November · day ?/30</span>
     <button class="chip" id="chip">🥜 Nut Rewards</button>
+    <button class="gear" id="acctBtn" title="My account" aria-label="My account">👤</button>
     <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
     <button class="me-av" id="meAv" style="display:none" aria-label="Switch profile"></button>
   </div>
@@ -337,6 +376,7 @@
   </div>
   <img id="timg" src="peachy.webp" alt="" draggable="false">
 </div>
+<div class="modal" id="acct"><div class="box rbox ac-box"><div class="in" id="acctBody"></div></div></div>
 <div class="modal" id="pmodal"><div class="box rbox"><div class="in" id="pe"></div></div></div>
 <div class="toast" id="toast"></div>
 
@@ -816,6 +856,7 @@ document.addEventListener("click", e=>{
   if (play){
     $("#modal").classList.remove("open");
     if (GUEST) { showLogin("Guests can't play episodes. Sign in with your wallet to watch 🍿"); return; }
+    PLAYING = play.dataset.play;
     loading(null, `Now playing "${play.dataset.play}"…`, true);
   }
 });
@@ -913,7 +954,7 @@ function loading(done, text, still){
   setTimeout(()=>{
     if (still){
       bar.classList.remove("on");
-      markWatched();
+      markWatched(PLAYING);
       $("#lt").textContent = "Episode over. That was quick… but it counts.";
       $("#still").classList.add("open");
     }
@@ -922,33 +963,109 @@ function loading(done, text, still){
 }
 
 /* =====================================================================
-   NUT REWARDS: watch 1 episode a day + hold ≥ 1,000 $NUT
-   → claim 1% of your bag, boosted by your streak (up to 2x).
-   $NUT is a demo point system. Wallet linking lives in Settings and is
-   proven with a signed message; the owner sees every linked wallet in
-   Settings → Admin and can re-verify each signature.
+   NUT REWARDS & ACCOUNTS
+   One account per wallet. Where it is stored depends on where the page runs:
+   - "api":    Cloudflare backend at /api (accounts, sessions, server-owned rules)
+   - "claude": the claude.ai artifact database (preview)
+   - "local":  this browser only, one saved account per wallet
    ===================================================================== */
-const RKEY = "nutflix_rewards_v1", MIN_HOLD = 1000;
-const ld = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-const yday = () => { const d = new Date(); d.setDate(d.getDate()-1); return ld(d); };
+const MIN_HOLD = 1000, STARTER_BAG = 1000;
+let API = false, SKEW = 0, SESSION = null, PLAYING = "";
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const localDay = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+// with the backend, "today" is the server's UTC day so streaks can't be gamed with the clock
+const ld = (d=new Date()) => API ? new Date(d.getTime()+SKEW).toISOString().slice(0,10) : localDay(d);
+const yday = () => ld(new Date(Date.now()-864e5));
 const fmt = n => Math.floor(n||0).toLocaleString("en-US");
 const short = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
-const blank = () => ({ wallet:null, bal:0, earned:0, watched:null, claimed:null, streak:0, claims:0, watchLog:[], profiles:[] });
+const blank = () => ({ wallet:null, bal:0, earned:0, watched:null, claimed:null, streak:0, best:0, claims:0, starter:false, watchLog:[], history:[], profiles:[] });
+
+const AKEY = "nutflix_accounts_v1", CKEY = "nutflix_current_v1", SKEY = "nutflix_session_v1";
+const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e) { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} };
+let accounts = lsGet(AKEY, {}) || {};
+{ // migrate the earlier single-state format
+  const old = lsGet("nutflix_rewards_v1", null);
+  if (old && !Object.keys(accounts).length) {
+    const k = old.wallet && typeof old.wallet === "object" ? old.wallet.address : "guest";
+    accounts[k] = old; lsSet(AKEY, accounts);
+  }
+}
 let st = blank();
-try { Object.assign(st, JSON.parse(localStorage.getItem(RKEY) || "{}")); } catch(e) {}
-if (st.wallet && typeof st.wallet !== "object") st.wallet = null;   // old demo format
+const acctKey = () => st.wallet ? st.wallet.address : "guest";
+function loadAccount(key){
+  st = Object.assign(blank(), JSON.parse(JSON.stringify(accounts[key] || {})));
+  if (key === "guest") st.wallet = null;
+}
+loadAccount(lsGet(CKEY, "guest") || "guest");
 
 let DB = null, USER = null, UID = null, IS_ADMIN = false, myRef = null, writeChain = Promise.resolve();
 let admin = { rows:null, unsub:null, names:{}, checks:{} };
 
 function save(){
-  try { localStorage.setItem(RKEY, JSON.stringify(st)); } catch(e) {}
+  st.history = (st.history||[]).slice(-120);
+  accounts[acctKey()] = st; lsSet(AKEY, accounts); lsSet(CKEY, acctKey());
+  if (API && SESSION && st.wallet) syncProfiles();
   if (!myRef) return;
   const body = JSON.parse(JSON.stringify({ ...st, updatedAt: new Date().toISOString() }));
   writeChain = writeChain.then(()=>myRef.set(body)).catch(e=>console.warn("Nutflix: could not save", e && e.code));
 }
 
-/* ---------- connect to the shared store (only inside claude.ai) ---------- */
+/* ---------- backend client ---------- */
+async function api(method, route, data){
+  try {
+    const res = await fetch("/api/" + route, { method, cache:"no-store",
+      headers: { "content-type":"application/json", ...(SESSION ? { authorization:"Bearer " + SESSION } : {}) },
+      body: data ? JSON.stringify(data) : undefined });
+    const j = await res.json().catch(()=>({}));
+    return { ok: res.ok, status: res.status, data: j };
+  } catch(e) { return { ok:false, status:0, data:{ error:"network" } }; }
+}
+let syncedProfiles = "";
+function applyServer(acc){
+  if (acc.serverTime) SKEW = acc.serverTime - Date.now();
+  const wallet = { chain:acc.chain, address:acc.address, linkedAt:new Date(acc.createdAt).toISOString(), verified:true, demo:false };
+  st = Object.assign(blank(), acc.state, { wallet });
+  syncedProfiles = JSON.stringify(st.profiles || []);
+  accounts[acctKey()] = st; lsSet(AKEY, accounts); lsSet(CKEY, acctKey());
+}
+async function syncProfiles(){
+  const j = JSON.stringify(st.profiles || []);
+  if (j === syncedProfiles) return;
+  syncedProfiles = j;
+  const r = await api("PUT", "profiles", { profiles: st.profiles });
+  if (r.ok) applyServer(r.data); else { syncedProfiles = ""; toast("⚠️ Couldn't save your profiles. Try again."); }
+}
+const API_ERRORS = {
+  watch_first: "Watch today's episode first 📺", hold_more: `Hold at least ${MIN_HOLD.toLocaleString("en-US")} $NUT to claim`,
+  already_claimed_today: "Already claimed today. Come back tomorrow 🥜", already_claimed: "Already claimed",
+  not_signed_in: "Your session expired. Sign in again.", network: "Network error. Check your connection.",
+};
+const apiError = d => API_ERRORS[d && d.error] || "Something went wrong. Try again.";
+function renderAll(){ renderRewards(); renderSettings(); renderLogin(); renderProfiles(); renderAccount(); }
+
+/* ---------- start: Cloudflare backend if present ---------- */
+(async () => {
+  if (!/^https?:$/.test(location.protocol)) return;
+  try {
+    const ctl = new AbortController(), t = setTimeout(()=>ctl.abort(), 4000);
+    const res = await fetch("/api/health", { signal: ctl.signal, cache:"no-store" });
+    clearTimeout(t);
+    if (!res.ok) return;
+    const j = await res.json();
+    if (!j.ok || !j.configured) return;
+    API = true; SKEW = j.serverTime - Date.now();
+  } catch(e) { return; }
+  SESSION = lsGet(SKEY, null);
+  if (SESSION) {
+    const r = await api("GET", "me");
+    if (r.ok) applyServer(r.data);
+    else { SESSION = null; lsSet(SKEY, null); loadAccount("guest"); }
+  } else if (st.wallet) loadAccount("guest");     // with a backend, wallets need a real session
+  renderAll();
+})();
+
+/* ---------- claude.ai preview: shared artifact database ---------- */
 (async () => {
   if (!window.claude || !window.claude.use) return;
   const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
@@ -961,50 +1078,86 @@ function save(){
     myRef = DB.doc("wallets/" + UID);
     try {
       const snap = await myRef.get();
-      if (snap.exists) st = Object.assign(blank(), JSON.parse(JSON.stringify(snap.data())));
+      if (snap.exists) { st = Object.assign(blank(), JSON.parse(JSON.stringify(snap.data()))); accounts[acctKey()] = st; lsSet(AKEY, accounts); }
       else if (st.wallet || st.bal) save();
     } catch(e) {}
   }
-  renderRewards(); renderSettings(); renderLogin(); renderProfiles();
+  renderAll();
 })();
 
 const nextStreak = () => st.claimed === ld() ? st.streak : (st.claimed === yday() ? st.streak + 1 : 1);
 const mult = () => Math.min(1 + (nextStreak() - 1) * 0.1, 2);
 const reward = () => Math.round(st.bal * 0.01 * mult());
+const currentStreak = () => (st.claimed === ld() || st.claimed === yday()) ? st.streak : 0;
 
 let toastT;
 function toast(msg){
   const t = $("#toast"); t.textContent = msg; t.classList.add("on");
   clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 3400);
 }
-function markWatched(){
-  if (st.watched === ld()) return;
-  st.watched = ld();
-  st.watchLog = [...(st.watchLog||[]).filter(d=>d!==ld()), ld()].slice(-60);
-  save(); renderRewards();
-  setTimeout(()=>toast(st.wallet ? "✅ Daily episode done. Go claim your $NUT 🥜" : "✅ Daily episode done. Link a wallet in Settings ⚙ to earn"), 400);
+
+/* ---------- the three actions: watch, starter bag, claim ---------- */
+async function markWatched(title){
+  const t = String(title || "an episode").slice(0, 80);
+  const first = st.watched !== ld();
+  if (API && SESSION) {
+    const r = await api("POST", "watch", { title: t });
+    if (r.ok) applyServer(r.data); else toast(apiError(r.data));
+  } else {
+    if (first) { st.watched = ld(); st.watchLog = [...(st.watchLog||[]).filter(d=>d!==ld()), ld()].slice(-366); }
+    st.history = [...(st.history||[]), { d:ld(), at:Date.now(), ty:"watch", t }];
+    save();
+  }
+  renderRewards(); renderAccount();
+  if (first) setTimeout(()=>toast(st.wallet ? "✅ Daily episode done. Go claim your $NUT 🥜" : "✅ Daily episode done. Sign in with a wallet to earn"), 400);
+}
+async function getStarter(){
+  if (API && SESSION) {
+    const r = await api("POST", "starter");
+    if (!r.ok) return toast(apiError(r.data));
+    applyServer(r.data); toast(`🎁 Starter bag: +${fmt(STARTER_BAG)} $NUT`);
+  } else {
+    st.bal += STARTER_BAG; st.starter = true;
+    st.history = [...(st.history||[]), { d:ld(), at:Date.now(), ty:"starter", n:STARTER_BAG }];
+    save(); toast(`🥜 +${fmt(STARTER_BAG)} $NUT added to your bag`);
+  }
+}
+async function claimReward(){
+  if (API && SESSION) {
+    const r = await api("POST", "claim");
+    if (!r.ok) return toast(apiError(r.data));
+    applyServer(r.data); toast(`💰 +${fmt(r.data.reward)} $NUT claimed · 🔥 ${st.streak}-day streak`);
+  } else {
+    const r = reward(); st.streak = nextStreak(); st.best = Math.max(st.best||0, st.streak);
+    st.claimed = ld(); st.bal += r; st.earned += r; st.claims = (st.claims||0) + 1;
+    st.history = [...(st.history||[]), { d:ld(), at:Date.now(), ty:"claim", n:r, s:st.streak }];
+    save(); toast(`💰 +${fmt(r)} $NUT claimed · 🔥 ${st.streak}-day streak`);
+  }
 }
 
 /* ---------- rewards panel ---------- */
 function renderRewards(){
   const watched = st.watched === ld(), holds = st.bal >= MIN_HOLD, claimed = st.claimed === ld();
-  const shownStreak = claimed ? st.streak : (st.claimed === yday() ? st.streak : 0);
+  const shownStreak = currentStreak();
   $("#chip").textContent = st.wallet ? `🥜 ${fmt(st.bal)} $NUT · 🔥 ${shownStreak}` : "🥜 Nut Rewards";
   const n = Math.min(shownStreak,7);
   const dots = [...Array(7)].map((_,i)=>`<span class="${i<n?"on":""}">${i<n?"🥜":i+1}</span>`).join("");
+  const buy = API
+    ? (st.starter ? `<button class="btn info sm" disabled>Starter bag claimed</button>` : `<button class="btn play sm" id="rwBuy" ${st.wallet ? "" : "disabled"}>🎁 Get starter bag</button>`)
+    : `<button class="btn info sm" id="rwBuy" ${st.wallet ? "" : "disabled"}>+ Get 1,000 $NUT</button>`;
   $("#rw").innerHTML = `
     <div class="rw-head"><div class="m">${hodlArt(hodlPhase(Math.max(shownStreak, 1)))}</div>
       <div><h4 style="margin:0">Nut Rewards</h4><div class="small" style="margin:0">Hold your bag. Hold your nut. Watch 1 episode a day and HODL gets paid.</div></div></div>
 
     <div class="rw-row">
-      <div><div class="rw-lbl">Wallet</div>${st.wallet ? `<b>${short(st.wallet.address)}</b> <span class="small">${st.wallet.chain}${st.wallet.demo?" · demo":""}</span>` : `<span style="color:var(--muted)">No wallet linked</span>`}</div>
-      ${st.wallet ? "" : `<button class="btn play sm" id="rwSettings">Sign in with wallet</button>`}
+      <div><div class="rw-lbl">Wallet</div>${st.wallet ? `<b>${esc(short(st.wallet.address))}</b> <span class="small">${esc(st.wallet.chain)}${st.wallet.demo?" · demo":""}</span>` : `<span style="color:var(--muted)">Not signed in</span>`}</div>
+      ${st.wallet ? `<button class="btn info sm" id="rwAcct">👤 My account</button>` : `<button class="btn play sm" id="rwSettings">Sign in with wallet</button>`}
     </div>
 
     <div class="rw-row">
       <div><div class="rw-lbl">Your bag</div><div class="rw-big">${fmt(st.bal)} <span style="font-size:22px;color:var(--red)">$NUT</span></div>
         <div class="small" style="margin:2px 0 0">Earned from rewards: ${fmt(st.earned)} $NUT</div></div>
-      <button class="btn info sm" id="rwBuy" ${st.wallet ? "" : "disabled"}>+ Get 1,000 $NUT</button>
+      ${buy}
     </div>
 
     <div class="rw-row" style="display:block">
@@ -1028,19 +1181,94 @@ function renderRewards(){
     <div class="small">$NUT is a points system for now, not a tradable token. No money, no financial advice. Miss a day and your streak resets, just like your willpower.</div>`;
 }
 $("#chip").onclick = () => { renderRewards(); $("#rewards").classList.add("open"); };
-$("#rewards").onclick = e => {
-  const id = e.target.id;
-  if (id === "rewards" || id === "rwClose") { $("#rewards").classList.remove("open"); return; }
+$("#rewards").onclick = async e => {
+  const id = (e.target.closest("button") || e.target).id;
+  if (e.target.id === "rewards" || id === "rwClose") { $("#rewards").classList.remove("open"); return; }
   if (id === "rwSettings") { $("#rewards").classList.remove("open"); showLogin("Sign in with your wallet to earn $NUT 🥜"); return; }
-  if (id === "rwBuy") { st.bal += 1000; save(); toast("🥜 +1,000 $NUT added to your bag"); }
-  if (id === "rwClaim") {
-    const r = reward(); st.streak = nextStreak(); st.claimed = ld(); st.bal += r; st.earned += r; st.claims = (st.claims||0) + 1; save();
-    toast(`💰 +${fmt(r)} $NUT claimed · 🔥 ${st.streak}-day streak`);
-  }
-  renderRewards();
+  if (id === "rwAcct") { $("#rewards").classList.remove("open"); openAccount(); return; }
+  if (id === "rwBuy") await getStarter();
+  if (id === "rwClaim") await claimReward();
+  renderRewards(); renderAccount();
 };
 
-/* ---------- wallet linking (Settings) ---------- */
+/* ---------- My Account: everything this wallet has done ---------- */
+function renderAccount(){
+  const el = $("#acctBody"); if (!el) return;
+  const w = st.wallet;
+  if (!w) {
+    el.innerHTML = `
+      <div class="ac-empty">
+        <div class="ac-art">${hodlArt(1)}</div>
+        <h4>Your No Nut November, tracked</h4>
+        <p class="small" style="margin:6px 0 18px">Sign in with your wallet to get your own account: streak, calendar, $NUT and history, on any device.</p>
+        <div class="btns" style="justify-content:center"><button class="btn play" id="acSignin">Connect wallet</button><button class="btn info" id="acClose">Close</button></div>
+      </div>`;
+    return;
+  }
+  const today = ld(), streakNow = currentStreak(), best = Math.max(st.best||0, streakNow);
+  const watched = new Set(st.watchLog || []);
+  const hist = st.history || [];
+  const claimedDays = new Set(hist.filter(h=>h.ty==="claim").map(h=>h.d).concat(st.claimed ? [st.claimed] : []));
+  const episodes = hist.filter(h=>h.ty==="watch").length;
+  const year = today.slice(0,4), firstDow = (new Date(Date.UTC(+year,10,1)).getUTCDay() + 6) % 7;
+  let held = 0;
+  const joined = w.linkedAt ? (API ? new Date(w.linkedAt).toISOString().slice(0,10) : localDay(new Date(w.linkedAt))) : "";
+  const cells = [...Array(firstDow)].map(()=>`<span class="cal-x"></span>`).concat([...Array(30)].map((_,i)=>{
+    const key = `${year}-11-${String(i+1).padStart(2,"0")}`;
+    let cls = "fut", mark = "";
+    if (key <= today) { cls = watched.has(key) ? (claimedDays.has(key) ? "nut" : "ok") : (key === today ? "now" : key < joined ? "pre" : "miss"); }
+    if (watched.has(key)) held++;
+    if (cls === "nut") mark = "🥜"; else if (cls === "ok") mark = "✓"; else if (cls === "miss") mark = "✕";
+    return `<span class="cal-d ${cls} ${key===today?"today":""}" title="${key}"><i>${i+1}</i><b>${mark}</b></span>`;
+  })).join("");
+  const label = h => h.ty === "watch" ? `📺 Watched <b>${esc(h.t||"an episode")}</b>`
+    : h.ty === "claim" ? `💰 Claimed <b>+${fmt(h.n)} $NUT</b>${h.s ? ` · 🔥 ${h.s}-day streak` : ""}`
+    : h.ty === "starter" ? `🎁 Got <b>+${fmt(h.n)} $NUT</b>` : esc(h.ty);
+  const when = h => h.at ? new Date(h.at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : h.d;
+  const recent = hist.slice(-12).reverse();
+  const phase = HODL_PHASES.find(p=>p.k===hodlPhase(Math.max(streakNow,1)));
+  const proof = w.demo ? `<span class="ac-badge demo">🧪 Demo, not verified</span>` : w.verified ? `<span class="ac-badge ok">✓ Verified by Nutflix</span>` : `<span class="ac-badge ok">✓ Signed</span>`;
+  el.innerHTML = `
+    <div class="ac-head">
+      <div class="ac-art">${hodlArt(phase.k)}</div>
+      <div style="min-width:0;flex:1">
+        <h4 style="margin:0">My Account</h4>
+        <div class="ac-addr"><span title="${esc(w.address)}">${esc(short(w.address))}</span><button class="ac-copy" id="acCopy" title="Copy address">⧉</button></div>
+        <div class="small" style="margin:2px 0 6px">${esc(w.chain)} · member since ${new Date(w.linkedAt).toLocaleDateString()}</div>
+        ${proof}
+      </div>
+    </div>
+    <div class="ac-phase">${esc(phase.label)}</div>
+    <div class="ac-stats">
+      <div><b>🔥 ${streakNow}</b><span>Current streak</span></div>
+      <div><b>🏆 ${best}</b><span>Best streak</span></div>
+      <div><b>📅 ${watched.size}</b><span>Days watched</span></div>
+      <div><b>📺 ${episodes}</b><span>Episodes</span></div>
+      <div><b>🥜 ${fmt(st.bal)}</b><span>$NUT bag</span></div>
+      <div><b>💰 ${fmt(st.earned)}</b><span>Earned</span></div>
+    </div>
+    <div class="rw-lbl" style="margin-top:20px">No Nut November ${year} · ${held}/30 days held</div>
+    <div class="cal-h">${["M","T","W","T","F","S","S"].map(d=>`<span>${d}</span>`).join("")}</div>
+    <div class="cal">${cells}</div>
+    <div class="cal-key"><span><i class="k nut"></i>Watched + claimed</span><span><i class="k ok"></i>Watched</span><span><i class="k miss"></i>Missed</span></div>
+    <div class="rw-lbl" style="margin-top:20px">Recent activity</div>
+    <div class="ac-hist">${recent.length ? recent.map(h=>`<div><span>${label(h)}</span><time>${esc(when(h))}</time></div>`).join("") : `<div class="small">Nothing yet. Press Play on any show to start your streak.</div>`}</div>
+    <div class="btns" style="margin-top:20px">
+      <button class="btn info" id="acClose">Close</button>
+      <button class="btn info" id="acOut" style="margin-left:auto;background:#5a1a12">Sign out</button>
+    </div>
+    <div class="small">${API ? "Your account is saved on Nutflix and follows your wallet on any device." : "Saved in this browser. On the live site your account follows your wallet on any device."}</div>`;
+}
+function openAccount(){ renderAccount(); $("#acct").classList.add("open"); }
+$("#acct").onclick = async e => {
+  const id = (e.target.closest("button") || e.target).id;
+  if (e.target.id === "acct" || id === "acClose") return $("#acct").classList.remove("open");
+  if (id === "acSignin") { $("#acct").classList.remove("open"); return showLogin("Sign in with your wallet to get your own account 🥜"); }
+  if (id === "acCopy") { try { await navigator.clipboard.writeText(st.wallet.address); toast("📋 Address copied"); } catch(_) { toast(st.wallet.address); } }
+  if (id === "acOut") { $("#acct").classList.remove("open"); await signOut(); showLogin(""); }
+};
+
+/* ---------- wallet sign-in ---------- */
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 function b58decode(s){
   let bytes = [0];
@@ -1066,41 +1294,86 @@ const detect = () => ({
 });
 let setMsg = "";
 
+async function signInMessage(chain, address){
+  if (!API) return { nonce:null, message: linkMessage(address) };
+  const r = await api("POST", "nonce", { chain, address });
+  if (!r.ok) throw new Error(r.data.error || "nonce");
+  return r.data;
+}
+async function finishSignIn(chain, address, message, nonce, signature){
+  if (API) {
+    const r = await api("POST", "verify", { nonce, signature });
+    if (!r.ok) { setMsg = r.data.error === "bad_signature" ? "That signature doesn't match this wallet." : "Sign-in failed. Try again."; return false; }
+    SESSION = r.data.token; lsSet(SKEY, SESSION); applyServer(r.data);
+    return true;
+  }
+  save();                                  // keep whatever account was open
+  loadAccount(address);                    // then switch to this wallet's own account
+  const since = st.wallet && st.wallet.linkedAt;
+  st.wallet = { chain, address, message, signature, linkedAt: since || new Date().toISOString(), demo:false };
+  save();
+  return true;
+}
+// on phones there is no extension: open Nutflix inside the wallet app's browser instead
+function noWallet(kind){
+  if (isMobile) {
+    const url = location.href.split("#")[0];
+    location.href = kind === "sol"
+      ? `https://phantom.app/ul/browse/${encodeURIComponent(url)}?ref=${encodeURIComponent(location.origin)}`
+      : `https://metamask.app.link/dapp/${url.replace(/^https?:\/\//, "")}`;
+    return false;
+  }
+  setMsg = kind === "sol"
+    ? "No Solana wallet found in this browser. Install Phantom, or open Nutflix in a browser where it's installed."
+    : "No Ethereum wallet found in this browser. Install MetaMask (or similar), or open Nutflix where it's installed.";
+  afterLink(); return false;
+}
+function afterLink(){ renderAll(); $("#lgMsg").textContent = setMsg; }
+
 async function linkSolana(){
   const p = detect().sol;
-  if (!p){ setMsg = "No Solana wallet found in this browser. Install Phantom, or open Nutflix in a browser where it's installed."; renderSettings(); $("#lgMsg").textContent = setMsg; return false; }
+  if (!p) return noWallet("sol");
+  let ok = false;
   try {
     const res = await p.connect();
     const address = (res && res.publicKey ? res.publicKey : p.publicKey).toString();
-    const message = linkMessage(address);
+    const { nonce, message } = await signInMessage("Solana", address);
     const signed = await p.signMessage(new TextEncoder().encode(message), "utf8");
-    const sig = signed.signature || signed;
-    st.wallet = { chain:"Solana", address, message, signature: toB64(new Uint8Array(sig)), linkedAt: new Date().toISOString(), demo:false };
-    save(); setMsg = ""; toast("🔗 Solana wallet linked and signed");
-  } catch(e){ setMsg = "Linking cancelled or refused by the wallet."; }
-  renderSettings(); renderRewards(); $("#lgMsg").textContent = setMsg;
-  return !!st.wallet;
+    setMsg = "";
+    ok = await finishSignIn("Solana", address, message, nonce, toB64(new Uint8Array(signed.signature || signed)));
+    if (ok) toast("🔗 Signed in with Phantom");
+  } catch(e){ setMsg = "Sign-in cancelled or refused by the wallet."; }
+  afterLink(); return ok;
 }
 async function linkEvm(){
   const eth = detect().evm;
-  if (!eth){ setMsg = "No Ethereum wallet found in this browser. Install MetaMask (or similar), or open Nutflix where it's installed."; renderSettings(); $("#lgMsg").textContent = setMsg; return false; }
+  if (!eth) return noWallet("evm");
+  let ok = false;
   try {
     const [address] = await eth.request({ method:"eth_requestAccounts" });
-    const message = linkMessage(address);
+    const { nonce, message } = await signInMessage("Ethereum", address);
     const hexMsg = "0x" + toHex(new TextEncoder().encode(message));
     const signature = await eth.request({ method:"personal_sign", params:[hexMsg, address] });
-    st.wallet = { chain:"Ethereum", address, message, signature, linkedAt: new Date().toISOString(), demo:false };
-    save(); setMsg = ""; toast("🔗 Ethereum wallet linked and signed");
-  } catch(e){ setMsg = "Linking cancelled or refused by the wallet."; }
-  renderSettings(); renderRewards(); $("#lgMsg").textContent = setMsg;
-  return !!st.wallet;
+    setMsg = "";
+    ok = await finishSignIn("Ethereum", address, message, nonce, signature);
+    if (ok) toast("🔗 Signed in with MetaMask");
+  } catch(e){ setMsg = "Sign-in cancelled or refused by the wallet."; }
+  afterLink(); return ok;
 }
 function linkDemo(){
+  if (API) return false;                  // the live site only accepts real wallets
   const address = "0xDEMO" + toHex(crypto.getRandomValues(new Uint8Array(18)));
+  save(); loadAccount(address);
   st.wallet = { chain:"Demo", address, message:null, signature:null, linkedAt:new Date().toISOString(), demo:true };
   save(); setMsg = ""; toast("🧪 Demo wallet linked (not verified)");
-  renderSettings(); renderRewards(); $("#lgMsg").textContent = setMsg;
-  return !!st.wallet;
+  afterLink();
+  return true;
+}
+async function signOut(){
+  if (API && SESSION) await api("POST", "logout");
+  SESSION = null; lsSet(SKEY, null);
+  save(); loadAccount("guest"); lsSet(CKEY, "guest");
+  afterLink(); toast("👋 Signed out");
 }
 
 /* ---------- signature verification (used by the admin view) ---------- */
@@ -1143,13 +1416,13 @@ function renderSettings(){
       ${w ? `
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
           <div><b style="word-break:break-all">${esc(w.address)}</b><div class="small" style="margin:2px 0 0">${esc(w.chain)} · ${w.demo ? "demo, not verified" : "signed " + new Date(w.linkedAt).toLocaleString()}</div></div>
-          <button class="btn info sm" id="stUnlink">Unlink</button>
+          <div class="btns"><button class="btn play sm" id="stAcct">👤 My account</button><button class="btn info sm" id="stUnlink">Sign out</button></div>
         </div>` : `
         <div class="small" style="margin:0 0 10px">Link a wallet to earn $NUT. You'll sign a short message to prove it's yours. It's free and sends no transaction.</div>
         <div class="btns">
           <button class="btn play sm" id="stSol">◎ Phantom (Solana)${d.sol ? "" : " · not detected"}</button>
           <button class="btn play sm" id="stEvm">🦊 MetaMask (Ethereum)${d.evm ? "" : " · not detected"}</button>
-          <button class="btn info sm" id="stDemo">🧪 Demo wallet</button>
+          ${API ? "" : `<button class="btn info sm" id="stDemo">🧪 Demo wallet</button>`}
         </div>`}
       ${setMsg ? `<div class="small" style="color:#ff8a7a">${esc(setMsg)}</div>` : ""}
     </div>
@@ -1167,6 +1440,7 @@ function renderSettings(){
   $("#setw").innerHTML = html;
 }
 $("#gear").onclick = openSettings;
+$("#acctBtn").onclick = openAccount;
 $("#meAv").onclick = () => { hideTempt(); clearTimeout(temptT); $("#browse").style.display = "none"; $("#who").classList.add("on"); window.scrollTo(0,0); };
 $("#settings").onclick = e => {
   const t = e.target.closest("button") || e.target, id = t.id;
@@ -1174,7 +1448,8 @@ $("#settings").onclick = e => {
   if (id === "stSol") linkSolana();
   if (id === "stEvm") linkEvm();
   if (id === "stDemo") linkDemo();
-  if (id === "stUnlink") { st.wallet = null; save(); renderSettings(); renderRewards(); }
+  if (id === "stUnlink") { $("#settings").classList.remove("open"); signOut().then(()=>showLogin("")); }
+  if (id === "stAcct") { $("#settings").classList.remove("open"); openAccount(); }
   if (id === "adVerify") verifyAll();
 };
 
@@ -1184,8 +1459,10 @@ function renderLogin(){
   const w = st.wallet;
   $("#lgBack").innerHTML = w ? `<button class="lg-cont" id="lgCont">▶ Continue as ${esc(short(w.address))} · ${esc(w.chain)}</button>` : "";
   const d = detect();
-  $("#lgSol").innerHTML = "◎ Continue with Phantom" + (d.sol ? "" : `<small class="nd">not detected</small>`);
-  $("#lgEvm").innerHTML = "🦊 Continue with MetaMask" + (d.evm ? "" : `<small class="nd">not detected</small>`);
+  const nd = isMobile ? `<small class="nd">opens the app</small>` : `<small class="nd">not detected</small>`;
+  $("#lgSol").innerHTML = "◎ Continue with Phantom" + (d.sol ? "" : nd);
+  $("#lgEvm").innerHTML = "🦊 Continue with MetaMask" + (d.evm ? "" : nd);
+  $("#lgDemo").style.display = API ? "none" : "";
 }
 function enter(asGuest){
   GUEST = asGuest;
@@ -1278,7 +1555,7 @@ renderRewards();
 
 $("#nnn").textContent = DAY ? `No Nut November · day ${DAY}/30 · stay strong` : "No Nut November · off-season, treat yourself";
 if (DAY) $("#herop").textContent += ` Day ${DAY}: only ${30-DAY} days to go. Hang in there.`;
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSignin(); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSignin(); $("#acct").classList.remove("open"); $("#pmodal").classList.remove("open"); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
 </script>
 </body>
 </html>
