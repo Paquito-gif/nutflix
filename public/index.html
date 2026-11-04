@@ -217,6 +217,28 @@
   .tempt .tname{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#d8261c;margin-bottom:4px}
   .avatar img{width:88%;height:88%;object-fit:contain;margin-top:8%;display:block}
   .tempt .bubble .btn.info{background:#e6ddd3;color:#1a0f0a}
+  .avatar.add{border:3px dashed #555;color:#777;font-weight:300}
+  .profile .avatar.add span{font-size:clamp(44px,5vw,60px);line-height:1}
+  .profile:hover .avatar.add{border-color:var(--text);color:var(--text)}
+  .profile.mine .avatar{box-shadow:0 0 0 2px #ffffff22 inset}
+  .me-av{width:38px;height:38px;border-radius:6px;overflow:hidden;display:grid;place-items:center;flex:0 0 38px}
+  .me-av img{width:90%;height:90%;object-fit:contain}
+  .me-av:hover{outline:2px solid var(--text)}
+  .pe-top{display:flex;gap:16px;align-items:flex-start}
+  .pe-prev{width:92px;flex:0 0 92px;border-radius:6px}
+  .pe-input{width:100%;background:#0b0806;border:1px solid #ffffff33;color:var(--text);font:inherit;font-size:17px;padding:12px 14px;border-radius:6px;margin-top:4px}
+  .pe-input:focus{outline:none;border-color:var(--text)}
+  .pe-err{color:#ff8a7a;font-size:13px;min-height:18px;margin-top:6px}
+  .pe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+  .pe-av{aspect-ratio:1;border-radius:6px;overflow:hidden;display:grid;place-items:center;border:3px solid transparent;transition:transform .12s}
+  .pe-av img{width:86%;height:86%;object-fit:contain}
+  .pe-av:hover{transform:scale(1.05)}
+  .pe-av.on{border-color:var(--text)}
+  .pe-colors{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .pe-col{width:32px;height:32px;border-radius:50%;border:3px solid transparent}
+  .pe-col.on{border-color:var(--text);box-shadow:0 0 0 2px #0b0806 inset}
+  #pmodal .box{max-width:480px}
+  @media (max-width:560px){.tag{display:none}.hdr-r{gap:6px}.chip{padding:7px 10px;font-size:12px}}
   .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140px);background:#17110c;border:1px solid #46d36966;color:var(--text);
     padding:12px 18px;border-radius:8px;z-index:70;transition:transform .3s;font-weight:600;max-width:calc(100vw - 32px);text-align:center}
   .toast.on{transform:translate(-50%,0)}
@@ -230,6 +252,7 @@
     <span class="tag" id="nnn">No Nut November · day ?/30</span>
     <button class="chip" id="chip">🥜 Nut Rewards</button>
     <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
+    <button class="me-av" id="meAv" style="display:none" aria-label="Switch profile"></button>
   </div>
 </header>
 
@@ -314,6 +337,7 @@
   </div>
   <img id="timg" src="peachy.webp" alt="" draggable="false">
 </div>
+<div class="modal" id="pmodal"><div class="box rbox"><div class="in" id="pe"></div></div></div>
 <div class="toast" id="toast"></div>
 
 <div class="loader" id="loader"><div>
@@ -655,15 +679,100 @@ if (shows[0].banner) {
 }
 $("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY));
 
-$("#profiles").innerHTML = profiles.map((p,i)=>`
-  <button class="profile" data-p="${i}">
-    <div class="avatar" style="background:${p.bg}">${p.img ? `<img src="${p.img}" alt="" draggable="false">` : mascot(p.m)}</div>
-    <span>${esc(p.name)}</span>
-  </button>`).join("") + `
-  <button class="profile" data-add>
-    <div class="avatar" style="border:3px dashed #555;font-size:54px;color:#777">+</div>
-    <span>Add Someone</span>
-  </button>`;
+/* ---------- profiles: the built-in jokes + the viewer's own ---------- */
+const AVATARS = [
+  {k:"hodl", img:"hodl.webp", name:"HODL"},
+  {k:"peachy", img:"peachy.webp", name:"Peachy"},
+  {k:"righty", img:"righty.webp", name:"Righty"},
+  {k:"big-egg", img:"big-egg.webp", name:"Big Egg"},
+  {k:"incognito", img:"incognito.webp", name:"Incognito Ike"},
+  {k:"sister", img:"sister.webp", name:"Sister November"},
+  {k:"paper-pete", img:"paper-pete.webp", name:"Paper Pete"},
+  {k:"slick-tissy", img:"slick-tissy.webp", name:"Slick & Tissy"},
+];
+const COLORS = ["#3a6ea5","#d8261c","#4a3a6a","#2e7d32","#b8743a","#3a3a3a","#c2185b","#00838f"];
+const MAX_CUSTOM = 4;
+const avatarImg = k => (AVATARS.find(a=>a.k===k) || AVATARS[0]).img;
+let CURRENT = null;   // the profile being used
+
+function renderProfiles(){
+  const mine = st.profiles || [];
+  $("#profiles").innerHTML =
+    mine.map((p,i)=>`
+      <button class="profile mine" data-c="${i}">
+        <div class="avatar" style="background:${p.bg}"><img src="${avatarImg(p.avatar)}" alt="" draggable="false"></div>
+        <span>${esc(p.name)}</span>
+      </button>`).join("") +
+    profiles.map((p,i)=>`
+      <button class="profile" data-p="${i}">
+        <div class="avatar" style="background:${p.bg}">${p.img ? `<img src="${p.img}" alt="" draggable="false">` : mascot(p.m)}</div>
+        <span>${esc(p.name)}</span>
+      </button>`).join("") +
+    (mine.length < MAX_CUSTOM ? `
+      <button class="profile" data-add>
+        <div class="avatar add"><span>+</span></div>
+        <span>Add Profile</span>
+      </button>` : "");
+}
+
+/* ---------- profile editor ---------- */
+let pe = { i:-1, name:"", avatar:"hodl", bg:COLORS[0] };
+function openProfileEditor(i){
+  const p = i >= 0 ? st.profiles[i] : null;
+  pe = p ? { i, name:p.name, avatar:p.avatar, bg:p.bg } : { i:-1, name:"", avatar:AVATARS[(st.profiles||[]).length % AVATARS.length].k, bg:COLORS[(st.profiles||[]).length % COLORS.length] };
+  renderEditor();
+  $("#pmodal").classList.add("open");
+  setTimeout(()=>$("#peName").focus(), 50);
+}
+function renderEditor(){
+  $("#pe").innerHTML = `
+    <h4 style="margin:0 0 4px">${pe.i >= 0 ? "Edit Profile" : "Add Profile"}</h4>
+    <div class="small" style="margin:0 0 18px">${pe.i >= 0 ? "New look, same willpower." : "Finally, someone else tonight. Pick a name and a face."}</div>
+    <div class="pe-top">
+      <div class="avatar pe-prev" style="background:${pe.bg}"><img src="${avatarImg(pe.avatar)}" alt=""></div>
+      <div style="flex:1;min-width:0">
+        <label class="rw-lbl" for="peName">Name</label>
+        <input id="peName" class="pe-input" maxlength="16" placeholder="e.g. Diamond Dave" value="${esc(pe.name)}" autocomplete="off">
+        <div class="pe-err" id="peErr"></div>
+      </div>
+    </div>
+    <div class="rw-lbl" style="margin-top:18px">Avatar</div>
+    <div class="pe-grid">${AVATARS.map(a=>`<button class="pe-av ${a.k===pe.avatar?"on":""}" data-av="${a.k}" title="${esc(a.name)}" aria-label="${esc(a.name)}" style="background:${pe.bg}"><img src="${a.img}" alt=""></button>`).join("")}</div>
+    <div class="rw-lbl" style="margin-top:16px">Color</div>
+    <div class="pe-colors">${COLORS.map(c=>`<button class="pe-col ${c===pe.bg?"on":""}" data-col="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join("")}</div>
+    <div class="btns" style="margin-top:22px">
+      <button class="btn play" id="peSave">Save</button>
+      <button class="btn info" id="peCancel">Cancel</button>
+      ${pe.i >= 0 ? `<button class="btn info" id="peDel" style="margin-left:auto;background:#5a1a12">Delete</button>` : ""}
+    </div>`;
+}
+function saveProfile(){
+  const name = $("#peName").value.trim().replace(/\s+/g," ");
+  if (!name) { $("#peErr").textContent = "Give it a name. Even HODL has one."; return; }
+  const list = [...(st.profiles||[])];
+  const taken = [...list.filter((_,j)=>j!==pe.i).map(p=>p.name), ...profiles.map(p=>p.name)].some(n=>n.toLowerCase()===name.toLowerCase());
+  if (taken) { $("#peErr").textContent = "That name is taken. Be original."; return; }
+  const p = { name, avatar:pe.avatar, bg:pe.bg, id: pe.i >= 0 ? list[pe.i].id : Date.now().toString(36) };
+  if (pe.i >= 0) list[pe.i] = p; else list.push(p);
+  st.profiles = list; save();
+  $("#pmodal").classList.remove("open");
+  renderProfiles(); toast(pe.i >= 0 ? "✏️ Profile updated" : `🥜 Welcome, ${name}`);
+}
+$("#pmodal").onclick = e => {
+  if (e.target.id === "pmodal") return $("#pmodal").classList.remove("open");
+  const t = e.target.closest("button"); if (!t) return;
+  pe.name = $("#peName").value;
+  if (t.dataset.av) { pe.avatar = t.dataset.av; renderEditor(); }
+  if (t.dataset.col) { pe.bg = t.dataset.col; renderEditor(); }
+  if (t.id === "peCancel") $("#pmodal").classList.remove("open");
+  if (t.id === "peSave") saveProfile();
+  if (t.id === "peDel") {
+    st.profiles = (st.profiles||[]).filter((_,j)=>j!==pe.i); save();
+    $("#pmodal").classList.remove("open"); renderProfiles(); toast("🗑️ Profile deleted. They folded.");
+  }
+};
+$("#pmodal").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "peName") { pe.name = e.target.value; saveProfile(); } });
+
 
 $("#rows").innerHTML = rows.map(r=>`
   <div class="row">
@@ -677,15 +786,20 @@ $("#rows").innerHTML = rows.map(r=>`
   </div>`).join("");
 
 document.addEventListener("click", e=>{
+  const c = e.target.closest("[data-c]");
+  if (c){
+    const prof = st.profiles[c.dataset.c];
+    if (editing) return openProfileEditor(+c.dataset.c);
+    return goBrowse({ name:prof.name, img:avatarImg(prof.avatar), bg:prof.bg });
+  }
   const p = e.target.closest("[data-p]");
   if (p){
     const prof = profiles[p.dataset.p];
     if (editing){ $("#msg").textContent = `Can't edit "${prof.name}": people don't change.`; return; }
     if (msgs[prof.name] && !p.dataset.warned){ p.dataset.warned=1; $("#msg").textContent = msgs[prof.name]+" (click again)"; return; }
-    loading(()=>{ $("#who").classList.remove("on"); $("#browse").style.display="block"; window.scrollTo(0,0); scheduleTempt(15000); }, `Hey ${prof.name}! Preparing some very… personalized recommendations`);
-    return;
+    return goBrowse({ name:prof.name, img:prof.img, bg:prof.bg });
   }
-  if (e.target.closest("[data-add]")){ $("#msg").textContent = "Nobody else tonight. As usual."; return; }
+  if (e.target.closest("[data-add]")){ if (editing) { editing = false; $("#edit").click(); } return openProfileEditor(-1); }
   const info = e.target.closest("[data-info]");
   if (info){
     const s = shows[info.dataset.info];
@@ -708,11 +822,17 @@ document.addEventListener("click", e=>{
 
 $("#mclose").onclick = () => $("#modal").classList.remove("open");
 $("#modal").onclick = e => { if (e.target.id==="modal") $("#modal").classList.remove("open"); };
+function goBrowse(prof){
+  CURRENT = prof;
+  $("#meAv").style.background = prof.bg; $("#meAv").innerHTML = prof.img ? `<img src="${prof.img}" alt="">` : "🥜";
+  $("#meAv").title = prof.name + " · switch profile"; $("#meAv").style.display = "";
+  loading(()=>{ $("#who").classList.remove("on"); $("#browse").style.display="block"; window.scrollTo(0,0); scheduleTempt(15000); }, `Hey ${prof.name}! Preparing some very… personalized recommendations`);
+}
 $("#edit").onclick = () => {
   editing = !editing;
   $("#profiles").classList.toggle("editing", editing);
   $("#edit").textContent = editing ? "Done" : "Manage Profiles";
-  $("#msg").textContent = "";
+  $("#msg").textContent = editing ? "Tap one of your profiles to edit it." : "";
 };
 $("#logo").onclick = () => {
   hideTempt(); clearTimeout(temptT);
@@ -813,7 +933,7 @@ const ld = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padSta
 const yday = () => { const d = new Date(); d.setDate(d.getDate()-1); return ld(d); };
 const fmt = n => Math.floor(n||0).toLocaleString("en-US");
 const short = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
-const blank = () => ({ wallet:null, bal:0, earned:0, watched:null, claimed:null, streak:0, claims:0, watchLog:[] });
+const blank = () => ({ wallet:null, bal:0, earned:0, watched:null, claimed:null, streak:0, claims:0, watchLog:[], profiles:[] });
 let st = blank();
 try { Object.assign(st, JSON.parse(localStorage.getItem(RKEY) || "{}")); } catch(e) {}
 if (st.wallet && typeof st.wallet !== "object") st.wallet = null;   // old demo format
@@ -845,7 +965,7 @@ function save(){
       else if (st.wallet || st.bal) save();
     } catch(e) {}
   }
-  renderRewards(); renderSettings(); renderLogin();
+  renderRewards(); renderSettings(); renderLogin(); renderProfiles();
 })();
 
 const nextStreak = () => st.claimed === ld() ? st.streak : (st.claimed === yday() ? st.streak + 1 : 1);
@@ -1047,6 +1167,7 @@ function renderSettings(){
   $("#setw").innerHTML = html;
 }
 $("#gear").onclick = openSettings;
+$("#meAv").onclick = () => { hideTempt(); clearTimeout(temptT); $("#browse").style.display = "none"; $("#who").classList.add("on"); window.scrollTo(0,0); };
 $("#settings").onclick = e => {
   const t = e.target.closest("button") || e.target, id = t.id;
   if (e.target.id === "settings" || id === "stClose") { $("#settings").classList.remove("open"); return; }
@@ -1102,6 +1223,7 @@ $("#guestPill").onclick = () => showLogin("");
 { const order = [...shows].sort((a,b)=>(a.t.length*7%5)-(b.t.length*7%5));
   $("#lgbg").innerHTML = [...order, ...shows, ...order, ...shows].slice(0,56).map(s=>`<div class="lg-tile">${poster(s)}</div>`).join(""); }
 renderLogin();
+renderProfiles();
 
 /* ---------- Admin (owner only) ---------- */
 function startAdmin(){
