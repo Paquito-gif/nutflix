@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutflix</title>
+<meta name="description" content="No Nut November, the streaming parody. Hold your bag, hold your nut. Starring HODL.">
+<meta property="og:title" content="Nutflix · No Nut November">
+<meta property="og:description" content="Unlimited innuendo, zero nuts, and so much more. Hold your bag. Hold your nut.">
+<meta property="og:image" content="bn-nnn.webp">
+<meta name="theme-color" content="#0b0806">
+<link rel="icon" href="hodl.webp" type="image/webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0806; --panel:#17110c; --text:#f3ece4; --muted:#a8998a;
+    --red:#d8261c; --nut:#b8743a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;overflow-x:hidden}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  svg{display:block}
+
+  /* ---------- header ---------- */
+  header{position:fixed;inset:0 0 auto 0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px clamp(16px,4vw,56px);background:linear-gradient(#000d,#0000)}
+  .logo{font-family:"Bebas Neue",sans-serif;font-size:clamp(34px,5vw,48px);letter-spacing:2px;color:var(--red);
+    text-shadow:0 2px 0 #6b0d08, 0 0 18px #d8261c55;line-height:1;user-select:none;cursor:pointer;display:inline-flex;align-items:center}
+  .logo .u{display:inline-block;transform-origin:50% 70%}
+  .logo:hover .u{animation:wobble .6s}
+  .logo .mini{width:clamp(30px,4vw,42px);height:clamp(36px,5vw,50px);margin-left:4px;transform-origin:50% 90%}
+  .logo:hover .mini{animation:wobble .6s}
+  @keyframes wobble{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(10deg)}}
+  .tag{font-size:12px;color:var(--muted);border:1px solid #ffffff22;padding:6px 10px;border-radius:999px;white-space:nowrap}
+  @media (max-width:560px){.tag{display:none}}
+
+  /* ---------- profiles ---------- */
+  body.pre header{display:none}
+  #who{display:none}
+  #login{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:110px 16px 120px;overflow:hidden;text-align:center}
+  body:not(.pre) #login{display:none}
+  .lg-wall{position:absolute;inset:0;overflow:hidden;perspective:1400px}
+  .lg-bg{position:absolute;left:-25%;top:-35%;width:150%;display:grid;grid-template-columns:repeat(8,1fr);gap:12px;
+    transform:rotateX(22deg) rotateZ(-14deg) scale(1.15);transform-origin:50% 40%;pointer-events:none}
+  .lg-tile{aspect-ratio:16/10;border-radius:8px;overflow:hidden;position:relative;box-shadow:0 10px 24px #0008}
+  .lg-tile svg{position:absolute;inset:0;width:100%;height:100%}
+  .lg-shade{position:absolute;inset:0;background:linear-gradient(0deg,#0b0806 0%,#0b080600 45%),linear-gradient(180deg,#000d 0%,#0000 30%),#000000a6}
+  .lg-top{position:absolute;top:0;left:0;right:0;padding:20px clamp(16px,8vw,150px);z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .lg-logo{cursor:default;font-size:clamp(36px,5vw,56px)}
+  .lg-signin{background:var(--red);color:#fff;font-weight:800;font-size:15px;padding:9px 18px;border-radius:5px}
+  .lg-signin:hover{filter:brightness(1.1)}
+  .lg-hero{position:relative;z-index:1;max-width:820px}
+  .lg-hero h1{font-weight:800;font-size:clamp(32px,5.6vw,64px);line-height:1.12;letter-spacing:-.5px;margin:0 0 18px;text-shadow:0 4px 20px #000}
+  .lg-price{font-weight:800;font-size:clamp(16px,2vw,22px);margin-bottom:30px}
+  .lg-ready{font-size:clamp(15px,1.6vw,19px);line-height:1.55;color:#eee;margin:0 auto 18px;max-width:640px}
+  .lg-cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .lg-big{background:var(--red);color:#fff;font-weight:800;font-size:clamp(20px,2.4vw,26px);padding:14px 30px;border-radius:5px;display:inline-flex;align-items:center;gap:14px}
+  .lg-big span{font-size:1.4em;line-height:.7}
+  .lg-big:hover{filter:brightness(1.1)}
+  .lg-ghost{background:#16161699;border:1px solid #ffffff66;color:#fff;font-weight:700;font-size:clamp(16px,1.8vw,19px);padding:14px 22px;border-radius:5px;backdrop-filter:blur(4px)}
+  .lg-ghost:hover{background:#ffffff22}
+  #lgBack:not(:empty){margin-bottom:12px}
+  .lg-cont{background:#ffffff1f;border:1px solid #ffffff3a;color:#fff;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px}
+  .lg-cont:hover{background:#ffffff33}
+  .lg-arc{position:absolute;left:0;right:0;bottom:0;height:110px;overflow:hidden;pointer-events:none;z-index:1}
+  .lg-arc::before{content:"";position:absolute;left:-15%;right:-15%;top:46px;height:600px;border-radius:50%;
+    border-top:4px solid #e5384a;box-shadow:0 -6px 40px #d8261c88, inset 0 40px 80px -20px #5a2a9a88;background:#0b0806}
+  .lg-card{position:relative;max-width:440px;padding:clamp(24px,4vw,40px);text-align:left;background:#0b0806f2;overflow:visible}
+  .lg-mascot{position:absolute;right:-24px;top:-66px;width:104px;transform:rotate(8deg);filter:drop-shadow(0 10px 20px #000);pointer-events:none}
+  .lg-mascot img{width:100%;display:block}
+  .lg-card h2{font-size:30px;font-weight:800;margin-bottom:8px}
+  .lg-sub{color:#cfc4b8;line-height:1.5;margin-bottom:18px;font-size:15px}
+  .lg-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 16px;border-radius:6px;font-weight:800;font-size:16px;margin-bottom:10px;transition:filter .15s}
+  .lg-btn:hover{filter:brightness(1.12)}
+  .lg-btn .nd{font-size:11px;font-weight:600;opacity:.75;padding:2px 7px;border-radius:999px;background:#0002}
+  .lg-btn.sol{background:linear-gradient(90deg,#8a5cf6,#ab9ff2);color:#fff}
+  .lg-btn.evm{background:#f6851b;color:#1a0f0a}
+  .lg-btn.guest{background:#ffffff1f;color:var(--text);border:1px solid #ffffff2a}
+  .lg-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:8px 0 16px}
+  .lg-or::before,.lg-or::after{content:"";flex:1;height:1px;background:#ffffff22}
+  .lg-msg{color:#ff8a7a;font-size:13px;line-height:1.45}
+  .lg-msg:not(:empty){margin:4px 0 10px}
+  .lg-demo{display:block;margin:4px auto 0;color:var(--muted);font-size:13px;text-decoration:underline}
+  .lg-demo:hover{color:var(--text)}
+  .lg-fine{font-size:12px;color:#8a7d70;line-height:1.5;margin-top:16px}
+  .lg-x{position:absolute;top:10px;left:12px;width:32px;height:32px;border-radius:50%;color:var(--muted);font-size:16px}
+  .lg-x:hover{color:var(--text);background:#ffffff14}
+  #signin .box{overflow:visible;max-height:none}
+  @media (max-width:560px){.lg-bg{grid-template-columns:repeat(4,1fr);left:-40%;width:180%}.lg-mascot{width:76px;right:-6px;top:-52px}.lg-signin{padding:8px 14px}}
+  .guestpill{display:none;margin-bottom:14px;background:#ffffff1a;border:1px solid #ffffff33;color:var(--text);font-weight:700;font-size:13px;padding:8px 14px;border-radius:999px}
+  .guestpill:hover{background:#ffffff2a}
+  body.guest .guestpill{display:inline-block}
+  @media (max-width:560px){.lg-bg{grid-template-columns:repeat(3,1fr)}.lg-mascot{width:80px;right:-8px;top:-56px}}
+  #who.on{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:110px 16px 60px;text-align:center}
+  h1{font-weight:600;font-size:clamp(30px,5.5vw,58px);margin-bottom:34px}
+  .profiles{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(14px,2.5vw,30px);max-width:1100px}
+  .profile{width:clamp(110px,14vw,150px);display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--muted)}
+  .avatar{width:100%;aspect-ratio:1;border-radius:6px;display:grid;place-items:center;overflow:hidden;
+    border:3px solid transparent;transition:transform .15s,border-color .15s;position:relative}
+  .avatar svg{width:88%;height:100%;margin-top:14%}
+  .profile:hover .avatar,.profile:focus-visible .avatar{border-color:var(--text);transform:scale(1.04)}
+  .profile:hover,.profile:focus-visible{color:var(--text);outline:none}
+  .profile span{font-size:clamp(14px,1.6vw,18px)}
+  .edit{margin-top:46px;border:1px solid var(--muted);color:var(--muted);padding:10px 26px;letter-spacing:3px;text-transform:uppercase;font-size:14px}
+  .edit:hover{color:var(--text);border-color:var(--text)}
+  .editing .avatar svg{filter:brightness(.4)}
+  .editing .avatar::after{content:"✏️";position:absolute;font-size:34px}
+  #msg{min-height:24px;margin-top:22px;color:var(--nut);font-weight:600;padding:0 8px}
+
+  /* ---------- browse ---------- */
+  #browse{display:none}
+  .hero{min-height:82vh;display:flex;align-items:flex-end;padding:120px clamp(16px,4vw,56px) 70px;
+    background:
+      radial-gradient(ellipse at 75% 40%, #b8743a44, transparent 55%),
+      radial-gradient(ellipse at 20% 80%, #d8261c33, transparent 50%),
+      linear-gradient(180deg,#1a100a,#0b0806);position:relative;overflow:hidden}
+  .hero.has-banner{background-image:linear-gradient(90deg,#0b0806 0%,#0b0806e6 28%,#0b080666 55%,#0b080600 75%),linear-gradient(0deg,#0b0806 0%,#0b080600 35%),linear-gradient(180deg,#000a 0%,#0000 25%),var(--bn);background-size:cover;background-position:center}
+  @media (max-width:760px){.hero.has-banner{background-image:linear-gradient(0deg,#0b0806 0%,#0b0806ee 38%,#0b080600 70%),linear-gradient(180deg,#000a 0%,#0000 20%),var(--bn);background-size:auto 75%;background-position:50% 64px;background-repeat:no-repeat;background-color:#0b0806}}
+  .hero.has-banner .star{display:none}
+  .hero .star{position:absolute;right:4%;bottom:6%;width:clamp(220px,34vw,460px);filter:drop-shadow(0 30px 40px #000)}
+  .hero .star .shake{animation:shake 2.6s ease-in-out infinite;transform-origin:50% 100%}
+  @keyframes shake{0%,70%,100%{transform:rotate(0)}74%{transform:rotate(-2deg)}78%{transform:rotate(2deg)}82%{transform:rotate(-2deg)}86%{transform:rotate(1deg)}}
+  .hero-c{max-width:560px;position:relative;z-index:1}
+  @media (max-width:760px){.hero .star{opacity:.35;right:-30px}}
+  .badge{display:inline-flex;gap:8px;align-items:center;font-weight:800;letter-spacing:3px;font-size:13px;color:var(--muted);margin-bottom:10px}
+  .badge b{color:var(--red);font-family:"Bebas Neue";font-size:22px;letter-spacing:1px}
+  .hero h2{font-family:"Bebas Neue",sans-serif;font-size:clamp(52px,9vw,110px);line-height:.9;letter-spacing:1px}
+  .hero p{margin:16px 0 22px;color:#ddd2c6;font-size:clamp(15px,1.5vw,18px);line-height:1.5}
+  .btns{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{padding:12px 26px;border-radius:5px;font-weight:800;font-size:17px;display:inline-flex;gap:10px;align-items:center}
+  .btn.play{background:var(--text);color:#000}
+  .btn.info{background:#6d6d6eb3;color:#fff}
+  .btn:hover{filter:brightness(.85)}
+  .rows{padding:0 0 60px;margin-top:-30px;position:relative}
+  .row{margin:0 0 30px}
+  .row h3{padding:0 clamp(16px,4vw,56px);margin-bottom:10px;font-size:clamp(17px,1.8vw,22px)}
+  .track{display:flex;gap:8px;overflow-x:auto;padding:8px clamp(16px,4vw,56px) 16px;scrollbar-width:none}
+  .track::-webkit-scrollbar{display:none}
+  .card{flex:0 0 clamp(220px,22vw,300px);aspect-ratio:16/9;border-radius:6px;position:relative;overflow:hidden;text-align:left;transition:transform .2s}
+  .card:hover{transform:scale(1.06);z-index:2}
+  .card svg.art{position:absolute;inset:0;width:100%;height:100%}
+  .card .lbl{position:absolute;left:0;bottom:0;padding:10px 12px;max-width:66%;display:flex;flex-direction:column}
+  .card .t{font-family:"Bebas Neue";font-size:clamp(20px,2vw,26px);line-height:.95;text-shadow:0 2px 8px #000,0 0 2px #000}
+  .card .n{font-size:10px;font-weight:800;color:var(--red);letter-spacing:2px;text-shadow:0 1px 3px #000}
+  .card .rk{position:absolute;left:8px;top:-6px;font-family:"Bebas Neue";font-size:64px;line-height:1;color:#0007;-webkit-text-stroke:2px #ffffff66}
+
+  /* ---------- modal / loader ---------- */
+  .modal{position:fixed;inset:0;background:#000b;display:none;place-items:center;z-index:50;padding:16px}
+  .modal.open{display:grid}
+  .box{background:var(--panel);max-width:560px;width:100%;border-radius:10px;overflow:hidden;border:1px solid #ffffff14;box-shadow:0 30px 80px #000}
+  .box .art{width:100%;aspect-ratio:16/9}
+  .box .art svg{width:100%;height:100%}
+  .box .in{padding:22px 26px 26px}
+  .box h4{font-family:"Bebas Neue";font-size:40px;line-height:1;margin-bottom:6px}
+  .box .meta{color:#46d369;font-weight:800;font-size:14px;margin-bottom:12px}
+  .box p{color:#ddd2c6;line-height:1.55}
+  .box .close{margin-top:18px}
+  .loader{display:none;position:fixed;inset:0;z-index:60;background:#000;place-items:center;text-align:center;padding:16px}
+  .loader.open{display:grid}
+  .loader .bob{width:160px;margin:0 auto;animation:bob .5s ease-in-out infinite alternate}
+  @keyframes bob{to{transform:translateY(-14px) rotate(4deg)}}
+  .loader p{margin-top:18px;color:var(--muted)}
+  .still{display:none}
+  .still.open{display:block}
+  footer{text-align:center;color:#6e6256;font-size:12px;padding:30px 16px 40px}
+
+  /* ---------- Nut Rewards ---------- */
+  .hdr-r{display:flex;gap:10px;align-items:center}
+  .chip{background:var(--red);color:#fff;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;white-space:nowrap;animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #d8261c99}70%,100%{box-shadow:0 0 0 12px #d8261c00}}
+  .bar{width:min(320px,80vw);height:6px;background:#333;border-radius:3px;margin:18px auto 0;overflow:hidden;display:none}
+  .bar.on{display:block}
+  .bar i{display:block;height:100%;width:0;background:var(--red)}
+  .rbox{max-height:calc(100vh - 32px);overflow-y:auto}
+  .rbox .in{padding:24px 26px}
+  .rw-head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .rw-head .m{width:64px;flex:0 0 64px}
+  .rw-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #ffffff12;flex-wrap:wrap}
+  .rw-big{font-family:"Bebas Neue";font-size:44px;line-height:1}
+  .rw-lbl{font-size:11px;letter-spacing:2px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:4px}
+  .ck{display:flex;gap:10px;align-items:center;padding:5px 0;color:#ddd2c6}
+  .ck b{width:22px;height:22px;flex:0 0 22px;border-radius:50%;display:grid;place-items:center;background:#333;font-size:12px}
+  .ck.ok b{background:#46d369;color:#000}
+  .dots{display:flex;gap:6px;flex-wrap:wrap}
+  .dots span{width:28px;height:28px;border-radius:50%;background:#2a221b;display:grid;place-items:center;font-size:13px}
+  .dots span.on{background:var(--red)}
+  .small{font-size:12px;color:var(--muted);line-height:1.5;margin-top:14px}
+  .btn.sm{padding:8px 14px;font-size:14px}
+  .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .mini img,.star img,.bob img,.evo img,.rw-head .m img{display:block;width:100%;height:100%;object-fit:contain}
+  .hero .star img{height:auto;max-height:70vh}
+  .evo img{height:72px}
+  .evo svg{height:72px;width:100%}
+  .evo{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px}
+  .evo div{background:#0b0806;border:1px solid #ffffff14;border-radius:6px;padding:6px 4px;text-align:center}
+  .evo div.now{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
+  .evo span{display:block;font-size:10px;color:var(--muted);line-height:1.3;margin-top:4px}
+  .box{max-height:calc(100vh - 32px);overflow-y:auto}
+  .gear{width:38px;height:38px;border-radius:50%;font-size:20px;color:var(--muted);border:1px solid #ffffff22;display:grid;place-items:center}
+  .gear:hover{color:var(--text);border-color:var(--text)}
+  .adm{overflow-x:auto;border:1px solid #ffffff14;border-radius:6px}
+  .adm table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  .adm th,.adm td{padding:8px 10px;text-align:left;border-bottom:1px solid #ffffff10;vertical-align:top}
+  .adm th{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+  #settings .box{max-width:760px}
+  .tempt{position:fixed;right:clamp(8px,3vw,32px);bottom:0;z-index:45;display:flex;align-items:flex-end;gap:6px;
+    transform:translateX(130%);transition:transform .5s cubic-bezier(.2,1.3,.4,1);pointer-events:none}
+  .tempt.on{transform:translateX(0);pointer-events:auto}
+  .tempt img{width:clamp(110px,14vw,170px);display:block;transform-origin:50% 100%;animation:twerk .45s ease-in-out infinite alternate;filter:drop-shadow(0 10px 20px #000)}
+  @keyframes twerk{from{transform:rotate(-4deg) translateY(0)}to{transform:rotate(4deg) translateY(-6px)}}
+  .tempt .bubble{background:#fff;color:#1a0f0a;border-radius:14px 14px 4px 14px;padding:12px 14px;margin-bottom:clamp(90px,12vw,140px);max-width:230px;box-shadow:0 10px 30px #000a}
+  .tempt .bubble p{font-weight:800;font-size:14px;line-height:1.35;margin-bottom:10px}
+  .tempt img.bob{animation:sway 1.6s ease-in-out infinite alternate}
+  @keyframes sway{from{transform:rotate(-3deg)}to{transform:rotate(3deg) translateY(-4px)}}
+  .tempt .tname{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#d8261c;margin-bottom:4px}
+  .avatar img{width:88%;height:88%;object-fit:contain;margin-top:8%;display:block}
+  .tempt .bubble .btn.info{background:#e6ddd3;color:#1a0f0a}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,140px);background:#17110c;border:1px solid #46d36966;color:var(--text);
+    padding:12px 18px;border-radius:8px;z-index:70;transition:transform .3s;font-weight:600;max-width:calc(100vw - 32px);text-align:center}
+  .toast.on{transform:translate(-50%,0)}
+</style>
+</head>
+<body class="pre">
+
+<header>
+  <div class="logo" id="logo" title="Back to profiles">N<span class="u">U</span>TFLIX<span class="mini" id="logoMascot"></span></div>
+  <div class="hdr-r">
+    <span class="tag" id="nnn">No Nut November · day ?/30</span>
+    <button class="chip" id="chip">🥜 Nut Rewards</button>
+    <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
+  </div>
+</header>
+
+<section id="login">
+  <div class="lg-wall" aria-hidden="true"><div class="lg-bg" id="lgbg"></div></div>
+  <div class="lg-shade"></div>
+  <div class="lg-top">
+    <div class="logo lg-logo">N<span class="u">U</span>TFLIX</div>
+    <button class="lg-signin" id="lgOpen2">Sign In</button>
+  </div>
+  <div class="lg-hero">
+    <h1>Unlimited innuendo, zero nuts, and so much more</h1>
+    <p class="lg-price">Starting at 0 $NUT. Cancel your willpower anytime.</p>
+    <p class="lg-ready">Ready to HODL? Connect your wallet to start your No Nut November streak and earn $NUT.</p>
+    <div id="lgBack"></div>
+    <div class="lg-cta">
+      <button class="lg-big" id="lgOpen">Connect wallet <span aria-hidden="true">›</span></button>
+      <button class="lg-ghost" id="lgGuest">👀 Browse as guest</button>
+    </div>
+  </div>
+  <div class="lg-arc" aria-hidden="true"></div>
+</section>
+
+<div class="modal" id="signin"><div class="box lg-card">
+  <div class="lg-mascot"><img src="hodl.webp" alt="" draggable="false"></div>
+  <h2>Sign In</h2>
+  <p class="lg-sub">Pick your wallet. You'll sign a short message to prove it's yours.</p>
+  <button class="lg-btn sol" id="lgSol">◎ Continue with Phantom</button>
+  <button class="lg-btn evm" id="lgEvm">🦊 Continue with MetaMask</button>
+  <div class="lg-msg" id="lgMsg" role="status"></div>
+  <div class="lg-or"><span>or</span></div>
+  <button class="lg-btn guest" id="lgGuest2">👀 Browse as guest</button>
+  <button class="lg-demo" id="lgDemo">Try it with a demo wallet</button>
+  <p class="lg-fine">Linking is free: no transaction is sent. Guests can look around but can't play episodes or earn rewards. Your linked wallet and activity are visible to the site owner.</p>
+  <button class="lg-x" id="lgClose" aria-label="Close">✕</button>
+</div></div>
+
+<main id="who">
+  <h1>Who's watching?</h1>
+  <div class="profiles" id="profiles"></div>
+  <div id="msg"></div>
+  <button class="edit" id="edit">Manage Profiles</button>
+</main>
+
+<section id="browse">
+  <div class="hero">
+    <div class="star" id="heroMascot"></div>
+    <div class="hero-c">
+      <button class="guestpill" id="guestPill">👀 Guest mode · Sign in to watch</button>
+      <div class="badge"><b>N</b> SURVIVAL SERIES</div>
+      <h2>No Nut November</h2>
+      <p id="herop">30 days. Zero slip-ups. Thousands of contestants at the start, a handful at the finish line. The most grueling show of the year.</p>
+      <div class="btns">
+        <button class="btn play" data-play="No Nut November">▶ Play</button>
+        <button class="btn info" data-info="0">ⓘ More Info</button>
+      </div>
+    </div>
+  </div>
+  <div class="rows" id="rows"></div>
+  <footer>Nutflix is a parody. No explicit content, just innuendo. Starring HODL, who has never sold a bag or finished a thing in November.</footer>
+</section>
+
+<div class="modal" id="modal"><div class="box">
+  <div class="art" id="ma"></div>
+  <div class="in">
+    <h4 id="mt"></h4>
+    <div class="meta" id="mm"></div>
+    <p id="md"></p>
+    <div id="mx"></div>
+    <div class="btns" style="margin-top:18px">
+      <button class="btn play" id="mplay" data-play="">▶ Play</button>
+      <button class="btn info" id="mclose">Close</button>
+    </div>
+  </div>
+</div></div>
+
+<div class="modal" id="rewards"><div class="box rbox"><div class="in" id="rw"></div></div></div>
+<div class="modal" id="settings"><div class="box rbox"><div class="in" id="setw"></div></div></div>
+<div class="tempt" id="tempt" aria-live="polite">
+  <div class="bubble"><b class="tname" id="tname"></b><p id="tline"></p>
+    <div class="btns" id="tbtns"><button class="btn play sm" id="tNo">💎 Resist</button><button class="btn info sm" id="tYes">…okay 🫠</button></div>
+  </div>
+  <img id="timg" src="peachy.webp" alt="" draggable="false">
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="loader" id="loader"><div>
+  <div class="bob" id="loadMascot"></div>
+  <p id="lt">Loading…</p>
+  <div class="bar" id="bar"><i></i></div>
+  <div class="still" id="still">
+    <p style="font-size:20px;color:var(--text);margin-top:26px">Are you finished already?</p>
+    <div class="btns" style="justify-content:center;margin-top:16px">
+      <button class="btn play" id="yes">No, I'm holding strong 💪</button>
+      <button class="btn info" id="no">Yes… already 😶</button>
+    </div>
+  </div>
+</div></div>
+
+<script>
+/* =====================================================================
+   NUTTY — the mascot. Drawn in SVG, coords: x -20..220, y -30..260
+   ===================================================================== */
+const LINE = "#6e421c";
+const BODY = "M100,28 C140,28 152,60 150,88 C148,108 138,118 140,128 C142,140 160,150 160,175 C160,212 132,228 100,228 C68,228 40,212 40,175 C40,150 58,140 60,128 C62,118 52,108 50,88 C48,60 60,28 100,28 Z";
+const DAY = new Date().getMonth()===10 ? new Date().getDate() : 0;
+let uid = 0;
+
+const eye = {
+  open:(x)=>`<ellipse cx="${x}" cy="80" rx="9" ry="11" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="${x+2}" cy="82" r="5" fill="#1a1a1a"/><circle cx="${x+4}" cy="79" r="1.6" fill="#fff"/>`,
+  big:(x)=>`<ellipse cx="${x}" cy="80" rx="11" ry="14" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="${x}" cy="81" r="4" fill="#1a1a1a"/>`,
+  lid:(x,skin)=>eye.open(x)+`<path d="M${x-10.5},81 A10.5 12 0 0 1 ${x+10.5},81 Z" fill="${skin}" stroke="${LINE}" stroke-width="2.5"/>`,
+  wink:(x)=>`<path d="M${x-9},82 Q${x},72 ${x+9},82" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  shut:(x)=>`<path d="M${x-9},80 Q${x},88 ${x+9},80" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  x:(x)=>`<path d="M${x-7},73 L${x+7},87 M${x+7},73 L${x-7},87" stroke="${LINE}" stroke-width="3.5" stroke-linecap="round"/>`,
+};
+const mouth = {
+  smirk:`<path d="M86,103 Q104,113 119,97" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  smile:`<path d="M84,100 Q100,116 116,100" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  grin:`<path d="M84,99 Q100,120 116,99 Z" fill="#5a1a12" stroke="${LINE}" stroke-width="3" stroke-linejoin="round"/><path d="M88,101 L112,101" stroke="#fff" stroke-width="3"/>`,
+  flat:`<path d="M89,105 L111,105" stroke="${LINE}" stroke-width="3.5" stroke-linecap="round"/>`,
+  o:`<ellipse cx="100" cy="106" rx="6" ry="8" fill="#5a1a12" stroke="${LINE}" stroke-width="2.5"/>`,
+  wobble:`<path d="M84,107 q4,-5 8,0 t8,0 t8,0 t8,0" stroke="${LINE}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  bite:`<path d="M86,102 Q100,108 116,100" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M96,104 l3,5 l3,-4" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>`,
+};
+const blush = `<ellipse cx="68" cy="98" rx="9" ry="5" fill="#ff5a6e" opacity=".5"/><ellipse cx="132" cy="98" rx="9" ry="5" fill="#ff5a6e" opacity=".5"/>`;
+const brow = {
+  raise:`<path d="M72,64 Q82,62 92,66" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M108,62 Q118,52 128,60" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
+  worry:`<path d="M72,62 L92,68 M108,68 L128,62" stroke="${LINE}" stroke-width="3.5" stroke-linecap="round"/>`,
+  angry:`<path d="M72,64 L92,70 M108,70 L128,64" stroke="${LINE}" stroke-width="4" stroke-linecap="round" transform="rotate(0)"/>`,
+  none:``,
+};
+
+/* face presets */
+const FACES = {
+  smirk:   s=>brow.raise + eye.wink(82) + eye.lid(118,s) + mouth.smirk + blush,
+  innocent:s=>eye.wink(82) + eye.wink(118) + mouth.smile + blush,
+  sweat:   s=>brow.worry + eye.open(82) + eye.open(118) + mouth.wobble,
+  sleep:   s=>eye.shut(82) + eye.shut(118) + `<ellipse cx="100" cy="106" rx="5" ry="4" fill="#5a1a12"/>`,
+  deadpan: s=>eye.lid(82,s) + eye.lid(118,s) + mouth.flat,
+  shock:   s=>eye.big(82) + eye.big(118) + mouth.o + blush,
+  dead:    s=>eye.x(82) + eye.x(118) + mouth.wobble,
+  bite:    s=>brow.raise + eye.lid(82,s) + eye.lid(118,s) + mouth.bite + blush,
+  grin:    s=>brow.angry + eye.lid(82,s) + eye.lid(118,s) + mouth.grin,
+  hidden:  s=>mouth.smirk + blush,          // eyes covered by an accessory
+  crazy:   s=>brow.worry + eye.big(82) + `<ellipse cx="118" cy="82" rx="6" ry="4" fill="#fff" stroke="${LINE}" stroke-width="2"/><circle cx="118" cy="82" r="2.5" fill="#1a1a1a"/>` + `<path d="M84,104 L90,100 L96,106 L102,100 L108,106 L114,100" stroke="${LINE}" stroke-width="3" fill="none" stroke-linejoin="round"/><path d="M88,103 L112,103" stroke="#fff" stroke-width="0"/>` + blush + blush,
+  hero:    s=>brow.raise + eye.wink(82) + eye.wink(118) + mouth.grin + blush,
+  broken:  s=>eye.shut(82) + eye.shut(118) + `<path d="M88,108 Q100,100 112,108" stroke="${LINE}" stroke-width="3.5" fill="none" stroke-linecap="round"/>` + blush,
+  blush:   s=>eye.shut(82) + eye.shut(118) + mouth.o + blush + blush,
+};
+
+/* outfits: drawn INSIDE the body silhouette (clipped) */
+const hearts = (y)=>[50,78,106,134].map((x,i)=>`<text x="${x+(i%2)*6}" y="${y+(i%2)*14}" font-size="13" fill="#fff" opacity=".9">♥</text>`).join("");
+const OUTFIT = {
+  boxers:`<rect x="30" y="180" width="140" height="60" fill="#d8261c"/>${hearts(200)}<rect x="30" y="176" width="140" height="8" fill="#fff"/><path d="M100,186 L100,228" stroke="#a0150e" stroke-width="2"/>`,
+  briefs:`<path d="M30,182 L170,182 L170,240 L30,240Z" fill="#111"/><rect x="30" y="178" width="140" height="7" fill="#d8261c"/><text x="78" y="184" font-size="7" font-weight="800" fill="#fff" font-family="Inter">NUTFLIX</text>`,
+  towel:`<path d="M30,172 L170,166 L170,240 L30,240Z" fill="#f3ece4"/><path d="M30,172 L170,166" stroke="#c9bfb3" stroke-width="3"/><path d="M118,170 L132,214" stroke="#c9bfb3" stroke-width="3"/>`,
+  jumpsuit:`<rect x="0" y="116" width="200" height="140" fill="#c0392b"/><path d="M80,116 L100,140 L120,116" fill="#8e2a1f"/><rect x="96" y="140" width="8" height="90" fill="#8e2a1f" opacity=".5"/>`,
+  dress:`<rect x="0" y="118" width="200" height="140" fill="#141414"/><path d="M66,118 L100,140 L100,118Z M134,118 L100,140 L100,118Z" fill="#f3ece4"/>`,
+  robe:`<rect x="0" y="118" width="200" height="140" fill="#6a1a3a"/><path d="M82,118 L100,180 L118,118" fill="#dba15f"/><path d="M40,182 L160,170" stroke="#e8b0c8" stroke-width="6"/>`,
+  hoodie:`<rect x="0" y="120" width="200" height="140" fill="#2a2a2a"/><path d="M90,132 L92,160 M110,132 L108,160" stroke="#888" stroke-width="2.5"/><rect x="70" y="180" width="60" height="22" rx="6" fill="#1e1e1e"/>`,
+};
+
+/* accessories drawn on top */
+const ACC = {
+  halo:`<ellipse cx="100" cy="12" rx="34" ry="8" fill="none" stroke="#ffd34d" stroke-width="5"/>`,
+  horns:`<path d="M66,46 L58,12 L82,36Z M134,46 L142,12 L118,36Z" fill="#d8261c" stroke="#7a0e08" stroke-width="2"/>`,
+  tail:`<path d="M150,200 C190,200 196,170 182,160" stroke="#d8261c" stroke-width="5" fill="none"/><path d="M176,156 L192,152 L186,168Z" fill="#d8261c"/>`,
+  tophat:`<rect x="60" y="30" width="80" height="9" rx="4" fill="#111"/><rect x="72" y="-12" width="56" height="44" rx="3" fill="#111"/><rect x="72" y="20" width="56" height="8" fill="#d8261c"/>`,
+  porkpie:`<rect x="54" y="36" width="92" height="9" rx="4.5" fill="#1d1d1d"/><path d="M70,39 L74,14 Q100,6 126,14 L130,39Z" fill="#1d1d1d"/><rect x="72" y="30" width="56" height="6" fill="#3d3d3d"/>`,
+  glasses:`<g fill="#ffffff22" stroke="#111" stroke-width="3"><rect x="68" y="70" width="27" height="19" rx="3"/><rect x="105" y="70" width="27" height="19" rx="3"/></g><path d="M95,78 L105,78 M68,76 L54,72 M132,76 L146,72" stroke="#111" stroke-width="3"/>`,
+  shades:`<path d="M62,72 L96,72 Q96,92 80,92 Q64,92 62,72Z M104,72 L138,72 Q136,92 120,92 Q104,92 104,72Z" fill="#111"/><path d="M96,74 L104,74 M62,73 L50,70 M138,73 L150,70" stroke="#111" stroke-width="3.5"/><path d="M70,76 L78,76 M112,76 L120,76" stroke="#fff" stroke-width="2" opacity=".6"/>`,
+  monocle:`<circle cx="118" cy="80" r="14" fill="#ffffff22" stroke="#d4a017" stroke-width="3"/><path d="M131,86 Q146,120 138,150" stroke="#d4a017" stroke-width="1.5" fill="none"/>`,
+  mustache:`<path d="M80,97 Q90,88 100,95 Q110,88 120,97 Q112,103 100,99 Q88,103 80,97Z" fill="#2e1c0e"/>`,
+  pearls:[...Array(9)].map((_,i)=>{const x=66+i*8.5,y=127+Math.sin(i/8*Math.PI)*12;return `<circle cx="${x}" cy="${y}" r="4.2" fill="#fbf7f0" stroke="#cfc4b4" stroke-width="1"/>`}).join(""),
+  feather:`<path d="M128,40 C150,0 176,-10 170,-20 C150,-12 130,10 124,40Z" fill="#e8b0c8" stroke="#b56b8a" stroke-width="1.5"/><circle cx="126" cy="42" r="6" fill="#7fc4d8"/>`,
+  blindfold:`<path d="M46,68 Q100,62 154,68 L154,92 Q100,86 46,92Z" fill="#d8261c"/><path d="M152,74 Q172,84 168,110 M152,84 Q164,96 156,118" stroke="#d8261c" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+  hair:`<path d="M50,82 C44,24 156,24 150,82 C140,56 116,50 100,56 C84,50 60,56 50,82Z" fill="#111"/><path d="M100,32 L100,56" stroke="#333" stroke-width="2"/>`
+    + [0,1,2,3,4].map(i=>`<ellipse cx="46" cy="${92+i*15}" rx="8" ry="9" fill="#111"/><ellipse cx="154" cy="${92+i*15}" rx="8" ry="9" fill="#111"/>`).join(""),
+  beanie:`<path d="M50,72 C46,18 154,18 150,72Z" fill="#2a2a2a"/><rect x="47" y="60" width="106" height="14" rx="7" fill="#444"/>`,
+  mask:`<ellipse cx="100" cy="86" rx="40" ry="46" fill="#f4efe6" stroke="#cfc4b4" stroke-width="2"/><path d="M76,76 Q84,70 92,76 Q84,80 76,76Z M108,76 Q116,70 124,76 Q116,80 108,76Z" fill="#111"/><ellipse cx="78" cy="96" rx="7" ry="4" fill="#f2a0a0"/><ellipse cx="122" cy="96" rx="7" ry="4" fill="#f2a0a0"/><path d="M84,102 Q92,98 100,102 Q108,98 116,102" stroke="#111" stroke-width="2.5" fill="none"/><path d="M84,102 Q78,96 80,90 M116,102 Q122,96 120,90" stroke="#111" stroke-width="2" fill="none"/><path d="M88,110 Q100,118 112,110" stroke="#b44" stroke-width="2.5" fill="none"/>`,
+  sweatdrops:`<path d="M150,54 q6,10 0,14 q-6,-4 0,-14Z M46,64 q6,10 0,14 q-6,-4 0,-14Z M158,82 q5,8 0,11 q-5,-3 0,-11Z" fill="#7fd0ff" stroke="#3a8ec0" stroke-width="1"/>`,
+  zzz:`<g font-family="Bebas Neue" fill="#cfe3ff"><text x="146" y="40" font-size="26">Z</text><text x="166" y="18" font-size="20">Z</text><text x="182" y="0" font-size="15">Z</text></g>`,
+  blanket:`<path d="M10,150 Q100,132 190,150 L196,248 L4,248Z" fill="#3a6ea5" stroke="#244a73" stroke-width="3"/><path d="M8,180 Q100,166 192,180 M6,212 Q100,198 194,212" stroke="#f3ece4" stroke-width="5" fill="none" opacity=".7"/>`,
+  phoneglow:`<ellipse cx="128" cy="96" rx="58" ry="46" fill="#9fd3ff" opacity=".16"/>`,
+  steam:`<path d="M52,30 q-8,-10 0,-20 q8,-10 0,-20 M148,30 q8,-10 0,-20 q-8,-10 0,-20" stroke="#fff" stroke-width="3" fill="none" opacity=".55" stroke-linecap="round"/>`,
+  lipstick:`<path d="M126,150 q4,-8 10,-2 q6,-6 10,2 q-10,10 -20,0Z" fill="#e0245e" opacity=".85"/><path d="M70,44 q4,-8 10,-2 q6,-6 10,2 q-10,10 -20,0Z" fill="#e0245e" opacity=".85" transform="rotate(-18 80 44)"/>`,
+  rosecheek:blush,
+  bandana:`<path d="M48,60 Q100,38 152,60 L152,74 Q100,52 48,74Z" fill="#d8261c" stroke="#8a0f08" stroke-width="2"/><text x="84" y="66" font-size="12" font-weight="800" fill="#fff" font-family="Inter" letter-spacing="1">NNN</text><path d="M50,64 C34,66 26,78 22,90 M50,70 C38,78 34,92 34,104" stroke="#d8261c" stroke-width="7" stroke-linecap="round" fill="none"/>`,
+  mosaic:[...Array(20)].map((_,i)=>{const c=["#e8b07a","#d8261c","#f7c6a0","#a0150e","#ffffff"][(i*3+Math.floor(i/5))%5];return `<rect x="${84+(i%5)*7}" y="${188+Math.floor(i/5)*7}" width="7" height="7" fill="${c}"/>`}).join(""),
+  mosaicXL:[...Array(42)].map((_,i)=>{const c=["#e8b07a","#d8261c","#f7c6a0","#a0150e","#ffffff","#ff7aa0"][(i*5)%6];return `<rect x="${73+(i%7)*8}" y="${178+Math.floor(i/7)*8}" width="8" height="8" fill="${c}"/>`}).join("")
+    + `<rect x="66" y="166" width="70" height="12" rx="2" fill="#111"/><text x="71" y="175" font-size="8.5" font-weight="800" fill="#fff" font-family="Inter" letter-spacing="1">CENSORED</text>`,
+  censorbar:`<rect x="64" y="186" width="74" height="22" rx="2" fill="#111" transform="rotate(-6 100 197)"/><text x="72" y="202" font-size="10" font-weight="800" fill="#fff" font-family="Inter" letter-spacing="1" transform="rotate(-6 100 197)">CENSORED</text>`,
+  twitch:`<path d="M136,66 l8,-5 M138,76 l10,0 M136,86 l8,5" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`,
+  shakes:`<path d="M24,120 q-6,10 0,20 q6,10 0,20 M176,120 q6,10 0,20 q-6,10 0,20 M14,150 q-5,8 0,16 M186,150 q5,8 0,16" stroke="#fff" stroke-width="3" fill="none" opacity=".6" stroke-linecap="round"/>`,
+  medal:`<path d="M86,118 L80,146 M114,118 L120,146" stroke="#3a6ea5" stroke-width="7"/><circle cx="100" cy="156" r="16" fill="#ffd34d" stroke="#b8860b" stroke-width="3"/><text x="100" y="162" text-anchor="middle" font-size="15" fill="#7a5a00" font-family="Bebas Neue">30</text>`,
+  sparkles:`<g fill="#bff3ff"><path d="M16,60 l3,8 l8,3 l-8,3 l-3,8 l-3,-8 l-8,-3 l8,-3Z"/><path d="M182,40 l2,6 l6,2 l-6,2 l-2,6 l-2,-6 l-6,-2 l6,-2Z"/><path d="M190,120 l2,5 l5,2 l-5,2 l-2,5 l-2,-5 l-5,-2 l5,-2Z"/></g>`,
+  confetti:[...Array(16)].map((_,i)=>`<rect x="${(i*37)%220-10}" y="${(i*53)%90-28}" width="6" height="10" fill="${["#ffd34d","#d8261c","#7fe0ff","#46d369"][i%4]}" transform="rotate(${i*40} ${(i*37)%220-7} ${(i*53)%90-23})"/>`).join(""),
+  tissues:`<g transform="translate(150,206)"><rect width="40" height="26" rx="3" fill="#7fc4d8" stroke="#3a8ec0" stroke-width="2"/><path d="M12,0 q8,-18 16,0" fill="#fff" stroke="#ccc" stroke-width="1.5"/></g><path d="M20,232 q6,-8 12,0 q-6,6 -12,0Z M36,240 q5,-6 10,0 q-5,5 -10,0Z" fill="#fff" stroke="#ccc"/>`,
+
+  crown:`<path d="M66,40 L72,6 L86,26 L100,0 L114,26 L128,6 L134,40Z" fill="#ffd34d" stroke="#b8860b" stroke-width="2"/><circle cx="100" cy="22" r="4" fill="#d8261c"/>`,
+};
+
+/* held items, drawn around the raised right hand at (168,92) */
+const HOLD = {
+  phone:`<g transform="translate(150,74) rotate(-12)"><rect width="24" height="40" rx="4" fill="#111"/><rect x="2.5" y="4" width="19" height="31" rx="2" fill="#9fd3ff"/><text x="5" y="20" font-size="7" font-weight="800" fill="#123" font-family="Inter">u up?</text></g>`,
+  stopwatch:`<g transform="translate(168,84)"><rect x="-4" y="-26" width="8" height="8" fill="#888"/><circle r="20" fill="#f3ece4" stroke="#555" stroke-width="4"/><path d="M0,0 L0,-14" stroke="#d8261c" stroke-width="3" stroke-linecap="round"/><text x="-6" y="13" font-size="10" font-weight="800" fill="#d8261c" font-family="Inter">0:03</text></g>`,
+  flag:`<g transform="translate(168,92)"><path d="M0,10 L0,-70" stroke="#ccc" stroke-width="4"/><path d="M0,-70 L40,-60 L0,-48Z" fill="#d8261c"/></g>`,
+  fan:`<g transform="translate(172,88) rotate(-20)"><path d="M0,0 L-34,-30 A45 45 0 0 1 34,-30Z" fill="#e8b0c8" stroke="#b56b8a" stroke-width="2"/><path d="M0,0 L-17,-38 M0,0 L0,-44 M0,0 L17,-38" stroke="#b56b8a" stroke-width="1.5"/></g>`,
+  pawn:`<g transform="translate(168,70)"><circle cy="-6" r="9" fill="#f3ece4" stroke="#333" stroke-width="2"/><path d="M-8,4 L8,4 L12,26 L-12,26Z" fill="#f3ece4" stroke="#333" stroke-width="2"/></g>`,
+  calendar:`<g transform="translate(146,40)"><rect width="50" height="54" rx="5" fill="#f3ece4" stroke="#333" stroke-width="2"/><rect width="50" height="15" rx="5" fill="#d8261c"/><text x="6" y="11" font-size="8" font-weight="800" fill="#fff" font-family="Inter">NOV</text><text x="25" y="48" text-anchor="middle" font-size="28" fill="#111" font-family="Bebas Neue">${DAY||"?"}</text></g>`,
+  rose:`<g transform="translate(168,92)"><path d="M0,0 L-6,-50" stroke="#2e7d32" stroke-width="3"/><circle cx="-6" cy="-56" r="10" fill="#d8261c"/><path d="M-12,-58 q6,-6 12,0" stroke="#7a0e08" stroke-width="2" fill="none"/></g>`,
+  bottle:`<g transform="translate(160,56) rotate(14)"><rect x="4" y="-12" width="10" height="12" fill="#ddd"/><rect width="18" height="42" rx="5" fill="#7fd0ff" stroke="#3a8ec0" stroke-width="2"/><text x="2.5" y="26" font-size="6" font-weight="800" fill="#123" font-family="Inter">SLIP</text></g>`,
+  cig:`<g transform="translate(140,104)"><rect width="22" height="4" fill="#fff"/><rect x="22" width="4" height="4" fill="#e8642c"/><path d="M28,-2 q4,-8 0,-16 q-4,-8 0,-16" stroke="#ccc" stroke-width="2" fill="none" opacity=".7"/></g>`,
+};
+
+function mascot(o={}){
+  const id = "nb"+(uid++);
+  const skin = o.skin || "#dba15f";
+  const face = FACES[o.face||"smirk"](skin);
+  const arms = {
+    hips:  `<path d="M61,140 Q36,154 52,176" /><path d="M139,140 Q164,154 148,176"/>`,
+    up:    `<path d="M61,140 Q38,160 42,186"/><path d="M139,140 Q170,126 168,96"/>`,
+    phone: `<path d="M61,140 Q38,160 42,186"/><path d="M139,140 Q166,140 158,104"/>`,
+    down:  `<path d="M61,140 Q40,160 40,190"/><path d="M139,140 Q160,160 160,190"/>`,
+    cover: `<path d="M61,140 Q40,120 74,84"/><path d="M139,140 Q160,120 126,84"/>`,
+    flex:  `<path d="M61,140 Q30,140 30,110"/><path d="M139,140 Q170,140 170,110"/>`,
+    none:  ``,
+  }[o.arms||"down"];
+  const hands = {
+    hips:[[52,176],[148,176]], up:[[42,186],[168,94]], phone:[[42,186],[158,104]],
+    down:[[40,190],[160,190]], cover:[[76,84],[124,84]], flex:[[30,106],[170,106]], none:[]
+  }[o.arms||"down"].map(([x,y])=> o.diamond
+      ? `<path d="M${x},${y-12} L${x+11},${y-2} L${x},${y+13} L${x-11},${y-2}Z" fill="#7fe0ff" stroke="#1f7fae" stroke-width="2.5" stroke-linejoin="round"/><path d="M${x-11},${y-2} L${x+11},${y-2} M${x-5},${y-2} L${x},${y+13} L${x+5},${y-2} M${x-5},${y-2} L${x},${y-12} L${x+5},${y-2}" stroke="#1f7fae" stroke-width="1.3" fill="none"/><path d="M${x-4},${y-7} L${x-1},${y-9}" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`
+      : o.paper
+      ? `<path d="M${x-9},${y-6} L${x-2},${y-11} L${x+3},${y-5} L${x+10},${y-8} L${x+8},${y+4} L${x+2},${y+10} L${x-6},${y+7} L${x-10},${y+1}Z" fill="#f3ece4" stroke="#9a8f82" stroke-width="2" stroke-linejoin="round"/><path d="M${x-4},${y-3} L${x+3},${y+4} M${x+4},${y-4} L${x-2},${y+2}" stroke="#bdb2a5" stroke-width="1.2"/>`
+      : `<circle cx="${x}" cy="${y}" r="8" fill="${skin}" stroke="${LINE}" stroke-width="3"/>`).join("");
+
+  if (o.dark){ // only glowing eyes + grin in the dark
+    return `<svg viewBox="-20 -30 240 290" xmlns="http://www.w3.org/2000/svg">
+      <path d="${BODY}" fill="#000" stroke="#222" stroke-width="3"/>
+      ${eye.lid(82,"#000")}${eye.wink(118).replace(LINE,"#fff")}<path d="M86,103 Q104,113 119,97" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      ${blush}</svg>`;
+  }
+  const texture = `<g fill="${LINE}" opacity=".22">
+      <ellipse cx="68" cy="56" rx="4" ry="2.5"/><ellipse cx="134" cy="60" rx="4" ry="2.5"/><ellipse cx="60" cy="118" rx="3" ry="2"/>
+      <ellipse cx="142" cy="122" rx="3" ry="2"/><ellipse cx="64" cy="160" rx="4" ry="2.5"/><ellipse cx="140" cy="166" rx="4" ry="2.5"/>
+      <ellipse cx="100" cy="150" rx="4" ry="2.5"/><ellipse cx="80" cy="200" rx="4" ry="2.5"/><ellipse cx="124" cy="204" rx="4" ry="2.5"/></g>
+    <ellipse cx="76" cy="54" rx="16" ry="9" fill="#fff" opacity=".28" transform="rotate(-25 76 54)"/>
+    <ellipse cx="70" cy="160" rx="12" ry="18" fill="#fff" opacity=".14"/>
+    <path d="M150,90 C146,112 138,120 140,130 C144,146 160,156 160,178 C160,214 130,228 100,228" fill="none" stroke="#000" stroke-width="18" opacity=".08"/>`;
+  const outfit = (o.outfit||[]).map(k=>OUTFIT[k]).join("");
+  const under = (o.under||[]).map(k=>ACC[k]).join("");
+  const acc = (o.acc||[]).map(k=>ACC[k]).join("");
+  const hold = o.hold ? HOLD[o.hold] : "";
+  const legs = o.noLegs ? "" : `<path d="M84,222 L80,242 M116,222 L120,242" stroke="${LINE}" stroke-width="7" stroke-linecap="round"/>
+      <ellipse cx="74" cy="245" rx="12" ry="6" fill="#1b1b1b"/><ellipse cx="126" cy="245" rx="12" ry="6" fill="#1b1b1b"/>`;
+  return `<svg viewBox="-20 -30 240 290" xmlns="http://www.w3.org/2000/svg"><g class="shake">
+    <defs><clipPath id="${id}"><path d="${BODY}"/></clipPath></defs>
+    ${under}${legs}
+    <path d="${BODY}" fill="${skin}"/>
+    <g clip-path="url(#${id})">${texture}${outfit}</g>
+    <path d="${BODY}" fill="none" stroke="${LINE}" stroke-width="4"/>
+    ${face}
+    <g fill="none" stroke="${LINE}" stroke-width="7" stroke-linecap="round">${arms}</g>
+    ${hands}${acc}${hold}
+  </g></svg>`;
+}
+
+/* =====================================================================
+   HODL — the No Nut November mascot. Diamond hands, never sells, never nuts.
+   Phase follows the day of November (or the viewer's streak).
+   ===================================================================== */
+const HODL_PHASES = [
+  {k:1, label:"Day 1–9 · Built different", m:{face:"grin", diamond:true, outfit:["boxers"], acc:["bandana","sparkles"], arms:"flex"}},
+  {k:2, label:"Day 10–19 · It's getting hard", m:{face:"sweat", diamond:true, outfit:["boxers"], acc:["bandana","mosaic","sweatdrops"], arms:"flex"}},
+  {k:3, label:"Day 20–29 · Down bad", m:{face:"crazy", diamond:true, outfit:["boxers"], acc:["bandana","mosaicXL","sweatdrops","twitch","shakes"], arms:"flex"}},
+  {k:4, label:"Day 30 · Legend", m:{face:"hero", diamond:true, outfit:["boxers"], acc:["bandana","halo","medal","confetti"], arms:"flex"}},
+  {k:0, label:"Folded · Paper hands", m:{face:"broken", paper:true, outfit:["boxers"], acc:["censorbar","tissues","zzz"], arms:"down"}},
+];
+const hodlPhase = d => !d ? 1 : d >= 30 ? 4 : d >= 20 ? 3 : d >= 10 ? 2 : 1;
+const hodl = k => HODL_PHASES.find(p=>p.k===k).m;
+/* generated artwork per phase; phases without one fall back to the drawn version */
+const HODL_IMG = { 1: "hodl.webp" };
+const hodlArt = k => HODL_IMG[k] ? `<img src="${HODL_IMG[k]}" alt="HODL" draggable="false">` : mascot(hodl(k));
+
+/* =====================================================================
+   SCENES for the posters (viewBox 0 0 320 180); Nutty sits on the right
+   ===================================================================== */
+const SCENE = {
+  bed:(c)=>`<rect x="150" y="128" width="170" height="52" fill="#5a3412"/><rect x="150" y="112" width="170" height="24" rx="8" fill="#efe7dc"/><rect x="292" y="70" width="16" height="110" rx="4" fill="#4a2a0e"/><ellipse cx="270" cy="112" rx="26" ry="10" fill="#fff"/>`,
+  lights:(c)=>{let s=`<path d="M0,22 Q80,50 160,24 T320,26" stroke="#222" stroke-width="2" fill="none"/>`;const col=["#ff4d4d","#ffd34d","#4dd2ff","#7dff6a","#ff7de9"];for(let i=0;i<14;i++){const x=10+i*23;const y=22+Math.sin(i/2.2)*12+12;s+=`<circle cx="${x}" cy="${y}" r="5" fill="${col[i%5]}"/><circle cx="${x}" cy="${y}" r="11" fill="${col[i%5]}" opacity=".25"/>`}return s+`<rect y="150" width="320" height="30" fill="#140c22"/>`},
+  ballroom:(c)=>`${[40,120,200,280].map(x=>`<circle cx="${x}" cy="18" r="22" fill="#ffd34d" opacity=".18"/><circle cx="${x}" cy="18" r="5" fill="#ffe9a6"/>`).join("")}<path d="M0,180 L0,140 Q160,120 320,140 L320,180Z" fill="#00000055"/>`,
+  clock:(c)=>`<circle cx="240" cy="80" r="74" fill="none" stroke="#ffffff22" stroke-width="10"/>${[...Array(12)].map((_,i)=>{const a=i/12*Math.PI*2;return `<rect x="${240+Math.sin(a)*60-2}" y="${80-Math.cos(a)*60-6}" width="4" height="12" fill="#ffffff33" transform="rotate(${i*30} ${240+Math.sin(a)*60} ${80-Math.cos(a)*60})"/>`}).join("")}`,
+  vault:(c)=>`<circle cx="250" cy="86" r="80" fill="#3a3a3a" stroke="#555" stroke-width="8"/><circle cx="250" cy="86" r="22" fill="#555"/>${[0,60,120].map(a=>`<rect x="246" y="20" width="8" height="132" fill="#4a4a4a" transform="rotate(${a} 250 86)"/>`).join("")}<g fill="#2e7d32">${[30,60,90].map((x,i)=>`<rect x="${x}" y="${30+i*20}" width="34" height="16" rx="2" transform="rotate(${i*15-10} ${x} 30)"/>`).join("")}</g>`,
+  night:(c)=>`<circle cx="60" cy="40" r="22" fill="#f3ece4"/><circle cx="70" cy="34" r="20" fill="${c}"/>${[[120,20],[160,50],[30,90],[200,16],[100,70],[300,30]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.6" fill="#fff"/>`).join("")}`,
+  curtains:(c)=>`<path d="M0,0 L70,0 Q40,90 60,180 L0,180Z" fill="#8b1a2a"/><path d="M320,0 L250,0 Q280,90 260,180 L320,180Z" fill="#8b1a2a"/><path d="M0,0 L320,0 L320,14 Q160,30 0,14Z" fill="#6a1220"/>`,
+  fire:(c)=>`<g opacity=".9">${[...Array(9)].map((_,i)=>{const x=150+i*20;const h=40+((i*37)%30);return `<path d="M${x},180 Q${x-14},${180-h*.6} ${x},${180-h} Q${x+14},${180-h*.6} ${x},180Z" fill="${i%2?"#ff8a00":"#ff3d00"}"/>`}).join("")}</g><circle cx="270" cy="30" r="20" fill="#ffd34d"/>`,
+  chess:(c)=>{let s="";for(let r=0;r<4;r++)for(let k=0;k<12;k++)if((r+k)%2)s+=`<rect x="${k*28}" y="${126+r*14}" width="28" height="14" fill="#ffffff18"/>`;return s},
+  dark:(c)=>``,
+  candles:(c)=>`${[170,190,300].map(x=>`<rect x="${x}" y="130" width="10" height="40" fill="#f3ece4"/><path d="M${x+5},116 q-6,8 0,14 q6,-6 0,-14Z" fill="#ffb300"/><circle cx="${x+5}" cy="124" r="16" fill="#ffb300" opacity=".18"/>`).join("")}`,
+  calendar:(c)=>`<g opacity=".15" fill="#fff">${[...Array(30)].map((_,i)=>`<rect x="${150+(i%7)*24}" y="${10+Math.floor(i/7)*30}" width="20" height="24" rx="2"/>`).join("")}</g>`,
+  hearts:(c)=>[...Array(10)].map((_,i)=>`<text x="${150+(i*41)%170}" y="${20+(i*53)%150}" font-size="${14+(i%3)*8}" fill="#ff5a8a" opacity=".35">♥</text>`).join(""),
+};
+
+function poster(s){
+  return `<svg class="art" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="g${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${s.bg}"/><stop offset="1" stop-color="#050302"/></linearGradient>
+    <linearGradient id="f${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".75"/><stop offset=".6" stop-color="#000" stop-opacity="0"/></linearGradient></defs>
+    <rect width="320" height="180" fill="url(#g${uid})"/>
+    ${s.banner ? `<image href="${s.banner}" width="320" height="180" preserveAspectRatio="xMidYMid slice"/>` : SCENE[s.scene](s.bg)}
+    ${s.banner ? "" : s.img ? `<image href="${s.img}" x="190" y="8" width="122" height="166" preserveAspectRatio="xMidYMax meet"/>`
+      : `<g transform="translate(${s.mx??186},${s.my??14}) scale(${s.ms??.56})">${mascot(s.m).replace(/^<svg[^>]*>|<\/svg>$/g,"")}</g>`}
+    <rect width="320" height="180" fill="url(#f${uid++})"/>
+  </svg>`;
+}
+
+/* =====================================================================
+   DATA
+   ===================================================================== */
+const profiles = [
+  {name:"Me", bg:"#3a6ea5", img:"hodl.webp", m:{face:"innocent", acc:["halo"], arms:"hips"}},
+  {name:"Me (Incognito)", bg:"#3a3a3a", img:"incognito.webp", m:{face:"hidden", outfit:["hoodie"], acc:["beanie","shades"], arms:"down"}},
+  {name:"Bro Who Folded", bg:"#7a1a12", img:"paper-pete.webp", m:{face:"dead", outfit:["boxers"], arms:"down", acc:["sweatdrops"]}},
+  {name:"My Ex", bg:"#d8261c", img:"righty.webp", m:{face:"grin", acc:["horns"], under:["tail"], arms:"up", hold:"flag", skin:"#e0a070"}},
+  {name:"Guest (No Strings)", bg:"#4a3a6a", img:"peachy.webp", m:{face:"bite", outfit:["robe"], acc:["lipstick"], arms:"hips"}},
+];
+const msgs = {
+  "Me (Incognito)":"This profile has no watch history. None at all. Totally normal.",
+  "Bro Who Folded":"💀 Eliminated from No Nut November on Nov 1st at 12:03 AM. Personal best.",
+  "My Ex":"🚩 Righty. Your right hand. You two were inseparable until November. You sure you want in?",
+  "Guest (No Strings)":"🍑 Peachy is already on the couch. This is how it starts.",
+};
+const shows = [
+  {t:"No Nut November", bg:"#5c1a12", scene:"calendar", y:2026, m:null,
+   d:"Starring HODL, the nut with diamond hands. He never sells his bag and he never, ever finishes. 30 days. Zero slip-ups. Every episode is harder than the last. Contains scenes of intense fidgeting and heavy censorship."},
+  {t:"Breaking Bed", bg:"#2e4a14", scene:"bed", y:2008, m:{face:"smirk", outfit:["briefs"], acc:["porkpie","glasses"], arms:"hips"},
+   d:"A mild-mannered nut discovers his box spring can't take it anymore. Say my name… louder, the neighbors didn't hear."},
+  {t:"Stranger Thighs", bg:"#1e1440", scene:"lights", y:2016, m:{face:"shock", outfit:["boxers"], arms:"cover"},
+   d:"In Hawkins, the kids discover the Upside Down. Nutty discovers the position of the same name. The lights flicker every time."},
+  {t:"Bridgerthong", bg:"#6a2a5a", scene:"ballroom", y:2020, m:{face:"blush", acc:["pearls","feather"], outfit:["briefs"], arms:"up", hold:"fan"},
+   d:"Balls, corsets and lingering glances. Lady Whistledown knows exactly who left the ballroom first. And with whom."},
+  {t:"3 Seconds", bg:"#14304e", scene:"clock", y:2001, m:{face:"sweat", outfit:["towel"], arms:"up", hold:"stopwatch", acc:["sweatdrops"]},
+   d:"One night. One mission. One… oh, it's already over. The shortest action series ever made. Jack Bauer could never."},
+  {t:"Lube-in", bg:"#123a52", scene:"vault", y:2021, m:{face:"smirk", acc:["tophat","monocle","mustache"], arms:"up", hold:"bottle"},
+   d:"A gentleman thief who slides in and out of anywhere without ever getting caught. His secret? We're not saying."},
+  {t:"Narcos: The Post-Nut Nap", bg:"#2a2016", scene:"bed", y:2015, m:{face:"sleep", acc:["blanket","zzz"], arms:"none", noLegs:true}, my:30,
+   d:"Docuseries. It's 11:04 PM. It's been over since 11:02. He's asleep. Eight episodes of snoring in 4K."},
+  {t:"Love Is Blind (and So Are the Curtains)", bg:"#4a1030", scene:"curtains", y:2020, m:{face:"hidden", acc:["blindfold"], outfit:["boxers"], arms:"up", hold:"rose"},
+   d:"Singles fall in love without seeing each other. Nutty fell in love with the wall. The blinds stay shut all season, just to be safe."},
+  {t:"Too Hot to Hand-le", bg:"#6a2a08", scene:"fire", y:2020, m:{face:"hidden", acc:["shades","sweatdrops","steam"], outfit:["briefs"], arms:"cover"},
+   d:"One villa, gorgeous singles, one rule: no touching. Not even yourself. Nutty had to sit on his hands. Nobody made it."},
+  {t:"You Up?", bg:"#0e1430", scene:"night", y:2018, m:{face:"bite", acc:["phoneglow"], outfit:["boxers"], arms:"phone", hold:"phone"},
+   d:"It's 2 AM. He sent it. She left him on read. A psychological thriller in two blue ticks."},
+  {t:"Money Heist: Pull Out Plan", bg:"#5a0e0a", scene:"vault", y:2017, m:{face:"hidden", outfit:["jumpsuit"], acc:["mask"], arms:"hips"},
+   d:"Eight robbers, one perfect plan, one rule: absolutely no surprise babies. The Professor thought of everything, even protection."},
+  {t:"The Queen's Hand-bit", bg:"#2b2b2b", scene:"chess", y:2020, m:{face:"smirk", acc:["crown"], outfit:["robe"], arms:"up", hold:"pawn"},
+   d:"A lonely prodigy spends her nights playing alone. She says it's just practice. The pawn has seen things."},
+  {t:"Dark (Lights Off)", bg:"#050505", scene:"dark", y:2017, m:{dark:true},
+   d:"You can't see a thing for 3 whole seasons. But you hear a lot."},
+  {t:"Wednesday Night, 11 PM", bg:"#1a1a1a", scene:"candles", y:2022, m:{face:"deadpan", outfit:["dress"], acc:["hair"], arms:"down", skin:"#d8b48a"},
+   d:"She doesn't smile. She doesn't answer u up? texts. She's right."},
+  {t:"Smoke After", bg:"#2a1a2e", scene:"hearts", y:2019, m:{face:"smirk", outfit:["towel"], arms:"phone", hold:"cig", acc:["lipstick"]},
+   d:"A slow-burn drama about the five minutes after. Nutty, a towel, and the smuggest face in streaming history."},
+];
+/* the cast stars in the shows (generated artwork) */
+const CAST = {
+  "Breaking Bed": ["big-egg.webp", "Big Egg, a cocky eggplant, discovers his box spring can't take it anymore. Say my name… louder, the neighbors didn't hear."],
+  "Stranger Thighs": ["peachy.webp", "In Hawkins, the kids discover the Upside Down. Peachy discovers twerking. The lights flicker every time she moves."],
+  "Bridgerthong": ["peachy.webp", "Balls, corsets and one very cheeky peach in a thong. Lady Whistledown knows exactly who left the ballroom first. And with whom."],
+  "3 Seconds": ["paper-pete.webp", "Paper Pete has one night, one mission and… oh, it's already over. The shortest action series ever made."],
+  "Lube-in": ["slick-tissy.webp", "Slick, a gentleman bottle, slides in and out of anywhere without ever getting caught. His partner Tissy cleans up the evidence."],
+  "Narcos: The Post-Nut Nap": ["paper-pete.webp", "Docuseries. It's 11:04 PM. It's been over since 11:02. Paper Pete is asleep in his tissues. Eight episodes of snoring in 4K."],
+  "Love Is Blind (and So Are the Curtains)": ["sister.webp", "Singles fall in love without seeing each other. Sister November makes sure nobody sees anything else either. The ruler stays out all season."],
+  "Too Hot to Hand-le": ["righty.webp", "One villa, gorgeous singles, one rule: no touching. Righty did not get the memo. Nobody made it."],
+  "You Up?": ["incognito.webp", "It's 2 AM. Incognito Ike just opened a new private window. A psychological thriller with zero browsing history."],
+  "Money Heist: Pull Out Plan": ["slick-tissy.webp", "Slick and Tissy plan the perfect heist on your bedroom. One rule: absolutely no surprise babies. They thought of everything."],
+  "The Queen's Hand-bit": ["righty.webp", "A lonely prodigy spends her nights playing alone with Righty. She says it's just practice. The pawn has seen things."],
+  "Wednesday Night, 11 PM": ["sister.webp", "She doesn't smile. She doesn't answer u up? texts. She crossed off every day on the calendar. Sister November is undefeated."],
+  "Smoke After": ["big-egg.webp", "A slow-burn drama about the five minutes after. Big Egg, a gold chain, and the smuggest face in streaming history."],
+};
+shows.forEach(sh => { const c = CAST[sh.t]; if (c) { sh.img = c[0]; sh.d = c[1]; } });
+/* full key-art banners (generated) */
+const BANNERS = {
+  "No Nut November": "bn-nnn.webp",
+  "Lube-in": "bn-lube-in.webp",
+  "Smoke After": "bn-smoke-after.webp",
+  "Love Is Blind (and So Are the Curtains)": "bn-love-is-blind.webp",
+  "Dark (Lights Off)": "bn-dark.webp",
+  "Too Hot to Hand-le": "bn-too-hot.webp",
+  "Money Heist: Pull Out Plan": "bn-money-heist.webp",
+  "You Up?": "bn-you-up.webp",
+  "Stranger Thighs": "bn-stranger-thighs.webp",
+  "Wednesday Night, 11 PM": "bn-wednesday.webp",
+  "The Queen's Hand-bit": "bn-queens-hand-bit.webp",
+  "Bridgerthong": "bn-bridgerthong.webp",
+  "Breaking Bed": "bn-breaking-bed.webp",
+  "3 Seconds": "bn-3-seconds.webp",
+  "Narcos: The Post-Nut Nap": "bn-narcos.webp",
+};
+shows.forEach(sh => { if (BANNERS[sh.t]) sh.banner = BANNERS[sh.t]; });
+shows[0].m = hodl(hodlPhase(DAY)); shows[0].img = HODL_IMG[hodlPhase(DAY)];
+const rows = [
+  {h:"Top 10 in the U.S. Tonight", top:true, idx:[0,1,2,3,4,5,6,7,8,9]},
+  {h:"Because You Watched Alone at 2 AM", idx:[9,11,12,13,14,2,5]},
+  {h:"Best Watched in Incognito Mode", idx:[8,3,14,11,1,12,10,7]},
+  {h:"Romances Under 3 Minutes", idx:[4,6,14,0,13,10]},
+];
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let editing = false;
+
+$("#logoMascot").innerHTML = hodlArt(1);
+$("#heroMascot").innerHTML = hodlArt(hodlPhase(DAY));
+if (shows[0].banner) {
+  const h = document.querySelector(".hero");
+  h.classList.add("has-banner");
+  h.style.setProperty("--bn", `url("${shows[0].banner}")`);
+}
+$("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY));
+
+$("#profiles").innerHTML = profiles.map((p,i)=>`
+  <button class="profile" data-p="${i}">
+    <div class="avatar" style="background:${p.bg}">${p.img ? `<img src="${p.img}" alt="" draggable="false">` : mascot(p.m)}</div>
+    <span>${esc(p.name)}</span>
+  </button>`).join("") + `
+  <button class="profile" data-add>
+    <div class="avatar" style="border:3px dashed #555;font-size:54px;color:#777">+</div>
+    <span>Add Someone</span>
+  </button>`;
+
+$("#rows").innerHTML = rows.map(r=>`
+  <div class="row">
+    <h3>${esc(r.h)}</h3>
+    <div class="track">${r.idx.map((i,k)=>{const s=shows[i];return `
+      <button class="card" data-info="${i}" aria-label="${esc(s.t)}">
+        ${poster(s)}
+        ${r.top?`<span class="rk">${k+1}</span>`:""}
+        <span class="lbl"><span class="n">N SERIES</span><span class="t">${esc(s.t)}</span></span>
+      </button>`}).join("")}</div>
+  </div>`).join("");
+
+document.addEventListener("click", e=>{
+  const p = e.target.closest("[data-p]");
+  if (p){
+    const prof = profiles[p.dataset.p];
+    if (editing){ $("#msg").textContent = `Can't edit "${prof.name}": people don't change.`; return; }
+    if (msgs[prof.name] && !p.dataset.warned){ p.dataset.warned=1; $("#msg").textContent = msgs[prof.name]+" (click again)"; return; }
+    loading(()=>{ $("#who").classList.remove("on"); $("#browse").style.display="block"; window.scrollTo(0,0); scheduleTempt(15000); }, `Hey ${prof.name}! Preparing some very… personalized recommendations`);
+    return;
+  }
+  if (e.target.closest("[data-add]")){ $("#msg").textContent = "Nobody else tonight. As usual."; return; }
+  const info = e.target.closest("[data-info]");
+  if (info){
+    const s = shows[info.dataset.info];
+    $("#ma").innerHTML = poster(s);
+    $("#mt").textContent = s.t;
+    $("#mm").textContent = `${95 + (s.t.length % 4)}% Match · ${s.y} · 🔞 Innuendo · ${(s.t.length%5)+1} Seasons`;
+    $("#md").textContent = s.d;
+    $("#mplay").dataset.play = s.t;
+    $("#mx").innerHTML = info.dataset.info === "0" ? `<div class="rw-lbl" style="margin-top:16px">HODL through the month</div><div class="evo">${HODL_PHASES.map(p=>`<div class="${p.k===hodlPhase(DAY)?"now":""}">${hodlArt(p.k)}<span>${p.label}</span></div>`).join("")}</div>` : "";
+    $("#modal").classList.add("open");
+    return;
+  }
+  const play = e.target.closest("[data-play]");
+  if (play){
+    $("#modal").classList.remove("open");
+    if (GUEST) { showLogin("Guests can't play episodes. Sign in with your wallet to watch 🍿"); return; }
+    loading(null, `Now playing "${play.dataset.play}"…`, true);
+  }
+});
+
+$("#mclose").onclick = () => $("#modal").classList.remove("open");
+$("#modal").onclick = e => { if (e.target.id==="modal") $("#modal").classList.remove("open"); };
+$("#edit").onclick = () => {
+  editing = !editing;
+  $("#profiles").classList.toggle("editing", editing);
+  $("#edit").textContent = editing ? "Done" : "Manage Profiles";
+  $("#msg").textContent = "";
+};
+$("#logo").onclick = () => {
+  hideTempt(); clearTimeout(temptT);
+  $("#browse").style.display="none"; $("#who").classList.add("on"); window.scrollTo(0,0);
+};
+$("#yes").onclick = () => { $("#lt").textContent = "Diamond hands 💎🙌 HODL is proud of you."; $("#still").classList.remove("open"); setTimeout(()=>$("#loader").classList.remove("open"),1800); };
+$("#no").onclick = () => {
+  $("#loadMascot").innerHTML = hodlArt(0);
+  $("#lt").textContent = "Paper hands detected. HODL is disappointed. Nutflix recommends a nap and a glass of water. 💧";
+  $("#still").classList.remove("open");
+  setTimeout(()=>{ $("#loader").classList.remove("open"); $("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY)); },2600);
+};
+
+/* ---------- Peachy, the temptation ---------- */
+const TEMPTERS = [
+  {name:"Peachy", img:"peachy.webp", cls:"", lines:[
+    "Just one episode… nobody's counting 😘",
+    "Hey diamond hands… wanna see something soft? 🍑",
+    "You look tense. Let me help you relax 🍑"]},
+  {name:"Righty", img:"righty.webp", cls:"bob", lines:[
+    "Remember me? We used to spend every night together ✋💋",
+    "It's only day {DAY}. One little time won't hurt 💅",
+    "Come here… I'll be gentle ✋"]},
+  {name:"Slick & Tissy", img:"slick-tissy.webp", cls:"bob", lines:[
+    "We're already set up in your room 😈",
+    "Free samples tonight. No questions asked 🧴",
+    "We'll clean up everything. Nobody will know 🤧"]},
+  {name:"Big Egg", img:"big-egg.webp", cls:"bob", lines:[
+    "Bro I folded on day 1 and I feel GREAT 🍆💪",
+    "Real ones don't do No Nut November, trust me bro 🍆",
+    "Diamond hands? More like diamond… nah forget it. Just do it bro 😏"]},
+  {name:"Incognito Ike", img:"incognito.webp", cls:"bob", lines:[
+    "Psst… history is cleared, buddy 🕶️",
+    "New private window? I've got tabs for days 🤫",
+    "What happens in incognito stays in incognito 😏"]},
+];
+let temptCount = 0, temptT, temptHide;
+function scheduleTempt(ms){ clearTimeout(temptT); if (temptCount < 4) temptT = setTimeout(showTempt, ms); }
+function showTempt(){
+  const busy = document.querySelector(".modal.open, .loader.open") || $("#browse").style.display !== "block";
+  if (busy) return scheduleTempt(8000);
+  const t = TEMPTERS[temptCount % TEMPTERS.length];
+  setPopup(t.img, t.cls, t.name, t.lines[Math.floor(Math.random()*t.lines.length)].replace("{DAY}", DAY||1), true);
+  $("#tempt").classList.add("on"); temptCount++;
+  clearTimeout(temptHide); temptHide = setTimeout(()=>{ hideTempt(); scheduleTempt(70000); }, 14000);
+}
+function setPopup(img, cls, name, line, buttons){
+  $("#timg").src = img; $("#timg").className = cls; $("#timg").alt = name;
+  $("#tname").textContent = name; $("#tline").textContent = line;
+  $("#tbtns").style.display = buttons ? "" : "none";
+}
+function hideTempt(){ $("#tempt").classList.remove("on"); clearTimeout(temptHide); }
+$("#tNo").onclick = () => {
+  const who = $("#tname").textContent;
+  // Sister November steps in to congratulate
+  setPopup("sister.webp", "bob", "Sister November", `Good. ${who} is gone. Now go pray and drink some water. 🙏`, false);
+  clearTimeout(temptHide); temptHide = setTimeout(()=>{ hideTempt(); scheduleTempt(75000); }, 4200);
+  toast(`💎🙌 Diamond hands. You resisted ${who}.`);
+};
+$("#tYes").onclick = () => {
+  hideTempt();
+  const who = $("#tname").textContent;
+  $("#loadMascot").innerHTML = `<img src="paper-pete.webp" alt="Paper Pete" draggable="false">`;
+  $("#still").classList.remove("open"); $("#bar").classList.remove("on");
+  $("#lt").textContent = `You gave in to ${who}. Welcome to Paper Pete's club 📄 HODL is ashamed of you.`;
+  $("#loader").classList.add("open");
+  setTimeout(()=>{ $("#loader").classList.remove("open"); $("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY)); scheduleTempt(90000); }, 2800);
+};
+
+function loading(done, text, still){
+  $("#lt").textContent = text;
+  $("#still").classList.remove("open");
+  $("#loader").classList.add("open");
+  const bar = $("#bar"), fill = bar.firstElementChild;
+  bar.classList.toggle("on", !!still);
+  fill.style.transition = "none"; fill.style.width = "0";
+  if (still) requestAnimationFrame(()=>requestAnimationFrame(()=>{ fill.style.transition = "width 5s linear"; fill.style.width = "100%"; }));
+  setTimeout(()=>{
+    if (still){
+      bar.classList.remove("on");
+      markWatched();
+      $("#lt").textContent = "Episode over. That was quick… but it counts.";
+      $("#still").classList.add("open");
+    }
+    else { $("#loader").classList.remove("open"); done && done(); }
+  }, still ? 5200 : 1400);
+}
+
+/* =====================================================================
+   NUT REWARDS: watch 1 episode a day + hold ≥ 1,000 $NUT
+   → claim 1% of your bag, boosted by your streak (up to 2x).
+   $NUT is a demo point system. Wallet linking lives in Settings and is
+   proven with a signed message; the owner sees every linked wallet in
+   Settings → Admin and can re-verify each signature.
+   ===================================================================== */
+const RKEY = "nutflix_rewards_v1", MIN_HOLD = 1000;
+const ld = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const yday = () => { const d = new Date(); d.setDate(d.getDate()-1); return ld(d); };
+const fmt = n => Math.floor(n||0).toLocaleString("en-US");
+const short = a => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
+const blank = () => ({ wallet:null, bal:0, earned:0, watched:null, claimed:null, streak:0, claims:0, watchLog:[] });
+let st = blank();
+try { Object.assign(st, JSON.parse(localStorage.getItem(RKEY) || "{}")); } catch(e) {}
+if (st.wallet && typeof st.wallet !== "object") st.wallet = null;   // old demo format
+
+let DB = null, USER = null, UID = null, IS_ADMIN = false, myRef = null, writeChain = Promise.resolve();
+let admin = { rows:null, unsub:null, names:{}, checks:{} };
+
+function save(){
+  try { localStorage.setItem(RKEY, JSON.stringify(st)); } catch(e) {}
+  if (!myRef) return;
+  const body = JSON.parse(JSON.stringify({ ...st, updatedAt: new Date().toISOString() }));
+  writeChain = writeChain.then(()=>myRef.set(body)).catch(e=>console.warn("Nutflix: could not save", e && e.code));
+}
+
+/* ---------- connect to the shared store (only inside claude.ai) ---------- */
+(async () => {
+  if (!window.claude || !window.claude.use) return;
+  const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+  DB = db; USER = user;
+  if (user) {
+    IS_ADMIN = await user.isOwner();
+    UID = await user.id();
+  }
+  if (DB && UID) {
+    myRef = DB.doc("wallets/" + UID);
+    try {
+      const snap = await myRef.get();
+      if (snap.exists) st = Object.assign(blank(), JSON.parse(JSON.stringify(snap.data())));
+      else if (st.wallet || st.bal) save();
+    } catch(e) {}
+  }
+  renderRewards(); renderSettings(); renderLogin();
+})();
+
+const nextStreak = () => st.claimed === ld() ? st.streak : (st.claimed === yday() ? st.streak + 1 : 1);
+const mult = () => Math.min(1 + (nextStreak() - 1) * 0.1, 2);
+const reward = () => Math.round(st.bal * 0.01 * mult());
+
+let toastT;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 3400);
+}
+function markWatched(){
+  if (st.watched === ld()) return;
+  st.watched = ld();
+  st.watchLog = [...(st.watchLog||[]).filter(d=>d!==ld()), ld()].slice(-60);
+  save(); renderRewards();
+  setTimeout(()=>toast(st.wallet ? "✅ Daily episode done. Go claim your $NUT 🥜" : "✅ Daily episode done. Link a wallet in Settings ⚙ to earn"), 400);
+}
+
+/* ---------- rewards panel ---------- */
+function renderRewards(){
+  const watched = st.watched === ld(), holds = st.bal >= MIN_HOLD, claimed = st.claimed === ld();
+  const shownStreak = claimed ? st.streak : (st.claimed === yday() ? st.streak : 0);
+  $("#chip").textContent = st.wallet ? `🥜 ${fmt(st.bal)} $NUT · 🔥 ${shownStreak}` : "🥜 Nut Rewards";
+  const n = Math.min(shownStreak,7);
+  const dots = [...Array(7)].map((_,i)=>`<span class="${i<n?"on":""}">${i<n?"🥜":i+1}</span>`).join("");
+  $("#rw").innerHTML = `
+    <div class="rw-head"><div class="m">${hodlArt(hodlPhase(Math.max(shownStreak, 1)))}</div>
+      <div><h4 style="margin:0">Nut Rewards</h4><div class="small" style="margin:0">Hold your bag. Hold your nut. Watch 1 episode a day and HODL gets paid.</div></div></div>
+
+    <div class="rw-row">
+      <div><div class="rw-lbl">Wallet</div>${st.wallet ? `<b>${short(st.wallet.address)}</b> <span class="small">${st.wallet.chain}${st.wallet.demo?" · demo":""}</span>` : `<span style="color:var(--muted)">No wallet linked</span>`}</div>
+      ${st.wallet ? "" : `<button class="btn play sm" id="rwSettings">Sign in with wallet</button>`}
+    </div>
+
+    <div class="rw-row">
+      <div><div class="rw-lbl">Your bag</div><div class="rw-big">${fmt(st.bal)} <span style="font-size:22px;color:var(--red)">$NUT</span></div>
+        <div class="small" style="margin:2px 0 0">Earned from rewards: ${fmt(st.earned)} $NUT</div></div>
+      <button class="btn info sm" id="rwBuy" ${st.wallet ? "" : "disabled"}>+ Get 1,000 $NUT</button>
+    </div>
+
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Today's quest</div>
+      <div class="ck ${watched ? "ok" : ""}"><b>${watched ? "✓" : ""}</b>Watch 1 episode today</div>
+      <div class="ck ${holds ? "ok" : ""}"><b>${holds ? "✓" : ""}</b>Hold at least ${fmt(MIN_HOLD)} $NUT</div>
+      <div class="ck ${claimed ? "ok" : ""}"><b>${claimed ? "✓" : ""}</b>Claim your daily reward</div>
+    </div>
+
+    <div class="rw-row">
+      <div><div class="rw-lbl">Streak · ${shownStreak} day${shownStreak===1?"":"s"}</div><div class="dots">${dots}</div></div>
+      <div style="text-align:right"><div class="rw-lbl">Today's reward</div>
+        <div class="rw-big" style="font-size:32px;color:#46d369">${claimed ? "Claimed" : "+" + fmt(reward())}</div>
+        <div class="small" style="margin:0">1% of bag × ${mult().toFixed(1)}x streak</div></div>
+    </div>
+
+    <div class="btns" style="margin-top:18px">
+      <button class="btn play" id="rwClaim" ${watched && holds && !claimed && st.wallet ? "" : "disabled"}>${claimed ? "Come back tomorrow" : "Claim $NUT"}</button>
+      <button class="btn info" id="rwClose">Close</button>
+    </div>
+    <div class="small">$NUT is a points system for now, not a tradable token. No money, no financial advice. Miss a day and your streak resets, just like your willpower.</div>`;
+}
+$("#chip").onclick = () => { renderRewards(); $("#rewards").classList.add("open"); };
+$("#rewards").onclick = e => {
+  const id = e.target.id;
+  if (id === "rewards" || id === "rwClose") { $("#rewards").classList.remove("open"); return; }
+  if (id === "rwSettings") { $("#rewards").classList.remove("open"); showLogin("Sign in with your wallet to earn $NUT 🥜"); return; }
+  if (id === "rwBuy") { st.bal += 1000; save(); toast("🥜 +1,000 $NUT added to your bag"); }
+  if (id === "rwClaim") {
+    const r = reward(); st.streak = nextStreak(); st.claimed = ld(); st.bal += r; st.earned += r; st.claims = (st.claims||0) + 1; save();
+    toast(`💰 +${fmt(r)} $NUT claimed · 🔥 ${st.streak}-day streak`);
+  }
+  renderRewards();
+};
+
+/* ---------- wallet linking (Settings) ---------- */
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function b58decode(s){
+  let bytes = [0];
+  for (const c of s){
+    let carry = B58.indexOf(c); if (carry < 0) throw new Error("bad base58");
+    for (let j=0;j<bytes.length;j++){ carry += bytes[j]*58; bytes[j] = carry & 255; carry >>= 8; }
+    while (carry){ bytes.push(carry & 255); carry >>= 8; }
+  }
+  for (const c of s){ if (c === "1") bytes.push(0); else break; }
+  return new Uint8Array(bytes.reverse());
+}
+const toB64 = u8 => btoa(String.fromCharCode(...u8));
+const fromB64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+const toHex = u8 => [...u8].map(b=>b.toString(16).padStart(2,"0")).join("");
+
+function linkMessage(address){
+  const nonce = crypto.getRandomValues(new Uint8Array(8));
+  return `Nutflix wants you to link this wallet.\n\nAddress: ${address}\nNonce: ${toHex(nonce)}\nIssued: ${new Date().toISOString()}\n\nSigning is free and does not send any transaction.`;
+}
+const detect = () => ({
+  sol: (window.phantom && window.phantom.solana) || (window.solana && window.solana.isPhantom ? window.solana : null),
+  evm: window.ethereum || null,
+});
+let setMsg = "";
+
+async function linkSolana(){
+  const p = detect().sol;
+  if (!p){ setMsg = "No Solana wallet found in this browser. Install Phantom, or open Nutflix in a browser where it's installed."; renderSettings(); $("#lgMsg").textContent = setMsg; return false; }
+  try {
+    const res = await p.connect();
+    const address = (res && res.publicKey ? res.publicKey : p.publicKey).toString();
+    const message = linkMessage(address);
+    const signed = await p.signMessage(new TextEncoder().encode(message), "utf8");
+    const sig = signed.signature || signed;
+    st.wallet = { chain:"Solana", address, message, signature: toB64(new Uint8Array(sig)), linkedAt: new Date().toISOString(), demo:false };
+    save(); setMsg = ""; toast("🔗 Solana wallet linked and signed");
+  } catch(e){ setMsg = "Linking cancelled or refused by the wallet."; }
+  renderSettings(); renderRewards(); $("#lgMsg").textContent = setMsg;
+  return !!st.wallet;
+}
+async function linkEvm(){
+  const eth = detect().evm;
+  if (!eth){ setMsg = "No Ethereum wallet found in this browser. Install MetaMask (or similar), or open Nutflix where it's installed."; renderSettings(); $("#lgMsg").textContent = setMsg; return false; }
+  try {
+    const [address] = await eth.request({ method:"eth_requestAccounts" });
+    const message = linkMessage(address);
+    const hexMsg = "0x" + toHex(new TextEncoder().encode(message));
+    const signature = await eth.request({ method:"personal_sign", params:[hexMsg, address] });
+    st.wallet = { chain:"Ethereum", address, message, signature, linkedAt: new Date().toISOString(), demo:false };
+    save(); setMsg = ""; toast("🔗 Ethereum wallet linked and signed");
+  } catch(e){ setMsg = "Linking cancelled or refused by the wallet."; }
+  renderSettings(); renderRewards(); $("#lgMsg").textContent = setMsg;
+  return !!st.wallet;
+}
+function linkDemo(){
+  const address = "0xDEMO" + toHex(crypto.getRandomValues(new Uint8Array(18)));
+  st.wallet = { chain:"Demo", address, message:null, signature:null, linkedAt:new Date().toISOString(), demo:true };
+  save(); setMsg = ""; toast("🧪 Demo wallet linked (not verified)");
+  renderSettings(); renderRewards(); $("#lgMsg").textContent = setMsg;
+  return !!st.wallet;
+}
+
+/* ---------- signature verification (used by the admin view) ---------- */
+let ethersP;
+const loadEthers = () => ethersP ||= new Promise((ok, ko)=>{
+  if (window.ethers) return ok(window.ethers);
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js";
+  s.onload = ()=>ok(window.ethers); s.onerror = ()=>{ ethersP = null; ko(new Error("load")); };
+  document.head.appendChild(s);
+});
+async function verifyWallet(w){
+  if (!w || w.demo || !w.signature || !w.message) return "unverified";
+  try {
+    if (w.chain === "Solana"){
+      const key = await crypto.subtle.importKey("raw", b58decode(w.address), { name:"Ed25519" }, false, ["verify"]);
+      const ok = await crypto.subtle.verify({ name:"Ed25519" }, key, fromB64(w.signature), new TextEncoder().encode(w.message));
+      return ok && w.message.includes(w.address) ? "valid" : "invalid";
+    }
+    if (w.chain === "Ethereum"){
+      const ethers = await loadEthers();
+      const rec = ethers.verifyMessage(w.message, w.signature);
+      return rec.toLowerCase() === w.address.toLowerCase() && w.message.includes(w.address) ? "valid" : "invalid";
+    }
+  } catch(e){ return "error"; }
+  return "unverified";
+}
+
+/* ---------- Settings modal ---------- */
+function openSettings(){ renderSettings(); $("#settings").classList.add("open"); startAdmin(); }
+function renderSettings(){
+  const w = st.wallet, d = detect();
+  const synced = !!myRef;
+  let html = `
+    <div class="rw-head"><div class="m">${mascot({face:"deadpan", outfit:["robe"], acc:["glasses"], arms:"hips"})}</div>
+      <div><h4 style="margin:0">Settings</h4><div class="small" style="margin:0">Account, wallet and the boring stuff.</div></div></div>
+
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Linked wallet</div>
+      ${w ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <div><b style="word-break:break-all">${esc(w.address)}</b><div class="small" style="margin:2px 0 0">${esc(w.chain)} · ${w.demo ? "demo, not verified" : "signed " + new Date(w.linkedAt).toLocaleString()}</div></div>
+          <button class="btn info sm" id="stUnlink">Unlink</button>
+        </div>` : `
+        <div class="small" style="margin:0 0 10px">Link a wallet to earn $NUT. You'll sign a short message to prove it's yours. It's free and sends no transaction.</div>
+        <div class="btns">
+          <button class="btn play sm" id="stSol">◎ Phantom (Solana)${d.sol ? "" : " · not detected"}</button>
+          <button class="btn play sm" id="stEvm">🦊 MetaMask (Ethereum)${d.evm ? "" : " · not detected"}</button>
+          <button class="btn info sm" id="stDemo">🧪 Demo wallet</button>
+        </div>`}
+      ${setMsg ? `<div class="small" style="color:#ff8a7a">${esc(setMsg)}</div>` : ""}
+    </div>
+
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Activity</div>
+      <div class="small" style="margin:0">Days watched: ${(st.watchLog||[]).length} · Claims: ${st.claims||0} · Bag: ${fmt(st.bal)} $NUT</div>
+      <div class="small" style="margin:6px 0 0">${synced
+        ? "Your linked wallet and reward activity are saved to Nutflix and visible to the site owner, so rewards can be checked."
+        : "Saved in this browser only (open Nutflix from claude.ai while signed in to sync it)."}</div>
+    </div>`;
+
+  if (IS_ADMIN) html += renderAdmin();
+  html += `<div class="btns" style="margin-top:18px"><button class="btn info" id="stClose">Close</button></div>`;
+  $("#setw").innerHTML = html;
+}
+$("#gear").onclick = openSettings;
+$("#settings").onclick = e => {
+  const t = e.target.closest("button") || e.target, id = t.id;
+  if (e.target.id === "settings" || id === "stClose") { $("#settings").classList.remove("open"); return; }
+  if (id === "stSol") linkSolana();
+  if (id === "stEvm") linkEvm();
+  if (id === "stDemo") linkDemo();
+  if (id === "stUnlink") { st.wallet = null; save(); renderSettings(); renderRewards(); }
+  if (id === "adVerify") verifyAll();
+};
+
+/* ---------- Sign-in screen ---------- */
+let GUEST = false;
+function renderLogin(){
+  const w = st.wallet;
+  $("#lgBack").innerHTML = w ? `<button class="lg-cont" id="lgCont">▶ Continue as ${esc(short(w.address))} · ${esc(w.chain)}</button>` : "";
+  const d = detect();
+  $("#lgSol").innerHTML = "◎ Continue with Phantom" + (d.sol ? "" : `<small class="nd">not detected</small>`);
+  $("#lgEvm").innerHTML = "🦊 Continue with MetaMask" + (d.evm ? "" : `<small class="nd">not detected</small>`);
+}
+function enter(asGuest){
+  GUEST = asGuest;
+  document.body.classList.remove("pre");
+  document.body.classList.toggle("guest", asGuest);
+  $("#lgMsg").textContent = "";
+  window.scrollTo(0,0);
+  $("#browse").style.display = "none"; $("#who").classList.add("on");
+  renderRewards();
+}
+function showLogin(msg){
+  hideTempt(); clearTimeout(temptT);
+  document.querySelectorAll(".modal.open").forEach(m=>m.classList.remove("open"));
+  $("#browse").style.display = "none"; $("#who").classList.remove("on");
+  document.body.classList.add("pre");
+  renderLogin(); window.scrollTo(0,0);
+  if (msg) openSignin(msg);
+}
+const openSignin = msg => { renderLogin(); $("#lgMsg").textContent = msg || ""; $("#signin").classList.add("open"); };
+const closeSignin = () => $("#signin").classList.remove("open");
+async function onLoginClick(e){
+  if (e.target.id === "signin") return closeSignin();
+  const id = (e.target.closest("button")||{}).id;
+  if (id === "lgOpen" || id === "lgOpen2") openSignin("");
+  if (id === "lgClose") closeSignin();
+  if (id === "lgCont") enter(false);
+  if (id === "lgGuest" || id === "lgGuest2") { closeSignin(); enter(true); }
+  if (id === "lgSol" && await linkSolana()) { closeSignin(); enter(false); }
+  if (id === "lgEvm" && await linkEvm()) { closeSignin(); enter(false); }
+  if (id === "lgDemo" && linkDemo()) { closeSignin(); enter(false); }
+}
+$("#login").onclick = onLoginClick;
+$("#signin").onclick = onLoginClick;
+$("#guestPill").onclick = () => showLogin("");
+{ const order = [...shows].sort((a,b)=>(a.t.length*7%5)-(b.t.length*7%5));
+  $("#lgbg").innerHTML = [...order, ...shows, ...order, ...shows].slice(0,56).map(s=>`<div class="lg-tile">${poster(s)}</div>`).join(""); }
+renderLogin();
+
+/* ---------- Admin (owner only) ---------- */
+function startAdmin(){
+  if (!IS_ADMIN || !DB || admin.unsub) return;
+  const timer = setTimeout(()=>{ if (!admin.rows){ admin.err = "Can't reach the data yet."; renderSettings(); } }, 10000);
+  admin.unsub = DB.collection("wallets").onSnapshot(async snap => {
+    if (!snap.metadata.fromCache) clearTimeout(timer);
+    admin.err = null;
+    admin.rows = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    if (USER) admin.names = await USER.profiles(admin.rows.map(r=>r.id));
+    if ($("#settings").classList.contains("open")) renderSettings();
+  }, err => { clearTimeout(timer); admin.err = "Couldn't load wallets (" + err.code + ")."; renderSettings(); });
+}
+async function verifyAll(){
+  for (const r of admin.rows||[]) { admin.checks[r.id] = "checking"; }
+  renderSettings();
+  for (const r of admin.rows||[]) { admin.checks[r.id] = await verifyWallet(r.wallet); renderSettings(); }
+}
+function renderAdmin(){
+  const rows = admin.rows;
+  const badge = s => ({valid:"✅ valid", invalid:"❌ invalid", error:"⚠️ error", unverified:"— not signed", checking:"…"})[s] || "";
+  let body;
+  if (admin.err) body = `<div class="small">${esc(admin.err)}</div>`;
+  else if (!rows) body = `<div class="small">Loading…</div>`;
+  else if (!rows.length) body = `<div class="small">Nobody has linked a wallet yet.</div>`;
+  else {
+    const linked = rows.filter(r=>r.wallet && !r.wallet.demo).length;
+    const today = rows.filter(r=>r.watched === ld()).length;
+    body = `<div class="small" style="margin:0 0 8px">${rows.length} viewer(s) · ${linked} real wallet(s) · ${today} watched today</div>
+      <div class="adm"><table>
+        <tr><th>Viewer</th><th>Wallet</th><th>Signature</th><th>Last watched</th><th>Days</th><th>Streak</th><th>Claims</th><th>Bag</th></tr>
+        ${rows.map(r=>{
+          const nm = (admin.names[r.id] && admin.names[r.id].name) || "Someone";
+          const w = r.wallet;
+          return `<tr>
+            <td>${esc(nm)}</td>
+            <td>${w ? `<span title="${esc(w.address)}">${esc(short(w.address))}</span><br><span class="small">${esc(w.chain)}</span>` : "<span class='small'>none</span>"}</td>
+            <td>${w ? (badge(admin.checks[r.id]) || (w.demo ? "— demo" : "not checked")) : ""}</td>
+            <td>${r.watched ? esc(r.watched) : "never"}</td>
+            <td>${(r.watchLog||[]).length}</td>
+            <td>${r.claimed === ld() || r.claimed === yday() ? (r.streak||0) : 0}</td>
+            <td>${r.claims||0}</td>
+            <td>${fmt(r.bal)}</td></tr>`;
+        }).join("")}
+      </table></div>
+      <div class="btns" style="margin-top:10px"><button class="btn play sm" id="adVerify">Verify all signatures</button></div>
+      <div class="small">A valid signature proves the viewer controls that wallet. Watch and claim dates are reported by the viewer's browser, so treat them as self-declared.</div>`;
+  }
+  return `<div class="rw-row" style="display:block"><div class="rw-lbl" style="color:var(--red)">Admin · only you see this</div>${body}</div>`;
+}
+renderRewards();
+
+$("#nnn").textContent = DAY ? `No Nut November · day ${DAY}/30 · stay strong` : "No Nut November · off-season, treat yourself";
+if (DAY) $("#herop").textContent += ` Day ${DAY}: only ${30-DAY} days to go. Hang in there.`;
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSignin(); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
+</script>
+</body>
+</html>
