@@ -85,7 +85,20 @@
   .lg-demo{display:block;margin:4px auto 0;color:var(--muted);font-size:13px;text-decoration:underline}
   .lg-demo:hover{color:var(--text)}
   .lg-fine{font-size:12px;color:#8a7d70;line-height:1.5;margin-top:16px}
-  .lg-x{position:absolute;top:10px;left:12px;width:32px;height:32px;border-radius:50%;color:var(--muted);font-size:16px}
+  .lg-back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-weight:700;font-size:14px;margin:-6px 0 12px;padding:6px 10px 6px 0}
+  .lg-back:hover{color:var(--text)}
+  .wl{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow-y:auto;margin:4px -4px 0;padding:0 4px}
+  .wl-h{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:800;margin:10px 0 2px}
+  .wl-i{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border-radius:8px;background:#ffffff0d;border:1px solid #ffffff14;text-align:left;transition:background .15s,border-color .15s}
+  .wl-i:hover{background:#ffffff1a;border-color:#ffffff33}
+  .wl-i.on{border-color:#46d36955}
+  .wl-ic{width:32px;height:32px;border-radius:8px;flex:0 0 32px;display:grid;place-items:center;font-size:20px;background:#0b0806;overflow:hidden}
+  .wl-ic img{width:100%;height:100%;object-fit:cover}
+  .wl-n{flex:1;min-width:0;font-weight:800;font-size:15px}
+  .wl-n small{display:block;font-weight:600;font-size:11px;color:var(--muted);margin-top:1px}
+  .wl-s{font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;background:#ffffff14;color:var(--muted);white-space:nowrap}
+  .wl-i.on .wl-s{background:#46d36922;color:#46d369}
+  .lg-x{display:none;position:absolute;top:10px;left:12px;width:32px;height:32px;border-radius:50%;color:var(--muted);font-size:16px}
   .lg-x:hover{color:var(--text);background:#ffffff14}
   #signin .box{overflow:visible;max-height:none}
   @media (max-width:560px){.lg-bg{grid-template-columns:repeat(4,1fr);left:-40%;width:180%}.lg-mascot{width:76px;right:-6px;top:-52px}.lg-signin{padding:8px 14px}}
@@ -333,11 +346,11 @@
 
 <div class="modal" id="signin"><div class="box lg-card">
   <div class="lg-mascot"><img src="hodl.webp" alt="" draggable="false"></div>
+  <button class="lg-back" id="lgBackBtn">← Back</button>
   <h2>Sign In</h2>
-  <p class="lg-sub">Pick your wallet. You'll sign a short message to prove it's yours.</p>
-  <button class="lg-btn sol" id="lgSol">◎ Continue with Phantom</button>
-  <button class="lg-btn evm" id="lgEvm">🦊 Continue with MetaMask</button>
+  <p class="lg-sub" id="lgSub">Pick your wallet. You'll sign a short message to prove it's yours.</p>
   <div class="lg-msg" id="lgMsg" role="status"></div>
+  <div class="wl" id="lgWallets"></div>
   <div class="lg-or"><span>or</span></div>
   <button class="lg-btn guest" id="lgGuest2">👀 Browse as guest</button>
   <button class="lg-demo" id="lgDemo">Try it with a demo wallet</button>
@@ -873,7 +886,7 @@ document.addEventListener("click", e=>{
   const play = e.target.closest("[data-play]");
   if (play){
     $("#modal").classList.remove("open");
-    if (GUEST) { showLogin("Guests can't play episodes. Sign in with your wallet to watch 🍿"); return; }
+    if (GUEST) { openSignin("Guests can't play episodes. Sign in with your wallet to watch 🍿"); return; }
     PLAYING = play.dataset.play;
     loading(null, `Now playing "${play.dataset.play}"…`, true);
   }
@@ -1336,7 +1349,7 @@ $("#chip").onclick = () => { renderRewards(); $("#rewards").classList.add("open"
 $("#rewards").onclick = async e => {
   const id = (e.target.closest("button") || e.target).id;
   if (e.target.id === "rewards" || id === "rwClose") { $("#rewards").classList.remove("open"); return; }
-  if (id === "rwSettings") { $("#rewards").classList.remove("open"); showLogin("Sign in with your wallet to earn $NUT 🥜"); return; }
+  if (id === "rwSettings") { $("#rewards").classList.remove("open"); openSignin("Sign in with your wallet to earn NFLX 🥜"); return; }
   if (id === "rwAcct") { $("#rewards").classList.remove("open"); openAccount(); return; }
   if (id === "rwBuy") await getStarter();
   if (id === "rwClaim") await claimReward();
@@ -1435,7 +1448,7 @@ function openAccount(){ renderAccount(); $("#acct").classList.add("open"); }
 $("#acct").onclick = async e => {
   const id = (e.target.closest("button") || e.target).id;
   if (e.target.id === "acct" || id === "acClose") return $("#acct").classList.remove("open");
-  if (id === "acSignin") { $("#acct").classList.remove("open"); return showLogin("Sign in with your wallet to get your own account 🥜"); }
+  if (id === "acSignin") { $("#acct").classList.remove("open"); return openSignin("Sign in with your wallet to get your own account 🥜"); }
   if (id === "acCopy") { try { await navigator.clipboard.writeText(st.wallet.address); toast("📋 Address copied"); } catch(_) { toast(st.wallet.address); } }
   if (id === "acOut") { $("#acct").classList.remove("open"); await signOut(); showLogin(""); }
 };
@@ -1460,10 +1473,87 @@ function linkMessage(address){
   const nonce = crypto.getRandomValues(new Uint8Array(8));
   return `Nutflix wants you to link this wallet.\n\nAddress: ${address}\nNonce: ${toHex(nonce)}\nIssued: ${new Date().toISOString()}\n\nSigning is free and does not send any transaction.`;
 }
-const detect = () => ({
-  sol: (window.phantom && window.phantom.solana) || (window.solana && window.solana.isPhantom ? window.solana : null),
-  evm: window.ethereum || null,
+/* ---------- wallet discovery ----------
+   Ethereum: every wallet that announces itself (EIP-6963), plus window.ethereum as a fallback.
+   Solana: every Wallet Standard wallet that can sign messages, plus the older injected objects. */
+const EVM_FOUND = new Map(), SOL_FOUND = new Map();
+let WL_READY = false;   // set once the wallet list helpers below exist
+window.addEventListener("eip6963:announceProvider", e => {
+  const d = e.detail; if (!d || !d.info || !d.provider) return;
+  EVM_FOUND.set(d.info.uuid || d.info.rdns || d.info.name, { name: d.info.name, rdns: d.info.rdns || "", icon: d.info.icon, provider: d.provider });
+  if (WL_READY) renderWallets();
 });
+window.dispatchEvent(new Event("eip6963:requestProvider"));
+const wsRegister = (...wallets) => {
+  for (const w of wallets) {
+    if (!w || !w.features || !w.features["standard:connect"] || !w.features["solana:signMessage"]) continue;
+    if (!(w.chains || []).some(c => String(c).startsWith("solana:"))) continue;
+    SOL_FOUND.set(w.name, { name: w.name, icon: w.icon, standard: w });
+  }
+  if (WL_READY) renderWallets();
+  return () => {};
+};
+window.addEventListener("wallet-standard:register-wallet", e => { try { e.detail({ register: wsRegister }); } catch(_) {} });
+try { window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", { detail: { register: wsRegister } })); } catch(_) {}
+
+function legacySolana(){
+  const out = [];
+  if (window.phantom && window.phantom.solana) out.push({ name:"Phantom", legacy: window.phantom.solana });
+  else if (window.solana && window.solana.isPhantom) out.push({ name:"Phantom", legacy: window.solana });
+  if (window.solflare && window.solflare.isSolflare) out.push({ name:"Solflare", legacy: window.solflare });
+  if (window.backpack && window.backpack.connect) out.push({ name:"Backpack", legacy: window.backpack });
+  return out;
+}
+const detect = () => ({ sol: SOL_FOUND.size || legacySolana().length, evm: EVM_FOUND.size || window.ethereum });
+
+const selfUrl = () => location.href.split("#")[0];
+const noScheme = u => u.replace(/^https?:\/\//, "");
+const enc = encodeURIComponent;
+// well-known wallets: shown even when not installed (install link on desktop, open-in-app on phones)
+const KNOWN = [
+  { key:"metamask", name:"MetaMask", kind:"evm", icon:"🦊", match:/metamask/i, install:"https://metamask.io/download/", app: u => `https://metamask.app.link/dapp/${noScheme(u)}` },
+  { key:"robinhood", name:"Robinhood Wallet", kind:"evm", icon:"🪶", match:/robinhood/i, install:"https://robinhood.com/us/en/web3-wallet/", app: null },
+  { key:"coinbase", name:"Coinbase Wallet", kind:"evm", icon:"🔵", match:/coinbase/i, install:"https://www.coinbase.com/wallet/downloads", app: u => `https://go.cb-w.com/dapp?cb_url=${enc(u)}` },
+  { key:"trust", name:"Trust Wallet", kind:"evm", icon:"🛡️", match:/trust/i, install:"https://trustwallet.com/download", app: u => `https://link.trustwallet.com/open_url?coin_id=60&url=${enc(u)}` },
+  { key:"rabby", name:"Rabby", kind:"evm", icon:"🐰", match:/rabby/i, install:"https://rabby.io/", app: null },
+  { key:"okx", name:"OKX Wallet", kind:"evm", icon:"⚫", match:/okx/i, install:"https://www.okx.com/web3", app: u => `okx://wallet/dapp/url?dappUrl=${enc(u)}` },
+  { key:"rainbow", name:"Rainbow", kind:"evm", icon:"🌈", match:/rainbow/i, install:"https://rainbow.me/download", app: null },
+  { key:"phantom", name:"Phantom", kind:"sol", icon:"👻", match:/phantom/i, install:"https://phantom.com/download", app: u => `https://phantom.app/ul/browse/${enc(u)}?ref=${enc(location.origin)}` },
+  { key:"solflare", name:"Solflare", kind:"sol", icon:"☀️", match:/solflare/i, install:"https://solflare.com/download", app: u => `https://solflare.com/ul/v1/browse/${enc(u)}?ref=${enc(location.origin)}` },
+  { key:"backpack", name:"Backpack", kind:"sol", icon:"🎒", match:/backpack/i, install:"https://backpack.app/downloads", app: null },
+];
+const safeIcon = i => typeof i === "string" && /^data:image\/(png|jpeg|webp|gif|svg\+xml)[;,]/i.test(i) ? i : null;
+let WALLETS = [];
+function walletList(){
+  const list = [];
+  for (const [id, w] of EVM_FOUND) list.push({ id:"evm:"+id, kind:"evm", name:w.name, icon:safeIcon(w.icon), detected:true, provider:w.provider });
+  if (!EVM_FOUND.size && window.ethereum) list.push({ id:"evm:injected", kind:"evm", name: window.ethereum.isMetaMask ? "MetaMask" : "Browser wallet", icon:null, emoji:"🦊", detected:true, provider: window.ethereum });
+  for (const [name, w] of SOL_FOUND) list.push({ id:"sol:"+name, kind:"sol", name, icon:safeIcon(w.icon), detected:true, standard:w.standard });
+  for (const w of legacySolana()) if (!list.some(x => x.kind === "sol" && x.name === w.name)) list.push({ id:"sol:legacy:"+w.name, kind:"sol", name:w.name, icon:null, detected:true, legacy:w.legacy });
+  for (const k of KNOWN) {
+    const hit = list.find(x => x.kind === k.kind && k.match.test(x.name));
+    if (hit) { hit.emoji = hit.emoji || k.icon; continue; }
+    list.push({ id:"known:"+k.key, kind:k.kind, name:k.name, icon:null, emoji:k.icon, detected:false, known:k });
+  }
+  return list.sort((a,b) => (b.detected - a.detected) || (a.kind === b.kind ? 0 : a.kind === "evm" ? -1 : 1));
+}
+function renderWallets(){
+  const el = document.getElementById("lgWallets"); if (!el) return;
+  WALLETS = walletList();
+  const row = w => {
+    const status = w.detected ? "Detected" : isMobile ? (w.known.app ? "Open app" : "Open in app") : "Install";
+    const chain = w.kind === "evm" ? "Ethereum · Robinhood Chain · NFLX rewards" : "Solana · no NFLX rewards";
+    return `<button class="wl-i ${w.detected ? "on" : ""}" data-w="${esc(w.id)}">
+      <span class="wl-ic">${w.icon ? `<img src="${esc(w.icon)}" alt="">` : (w.emoji || "👛")}</span>
+      <span class="wl-n">${esc(w.name)}<small>${chain}</small></span>
+      <span class="wl-s">${status}</span></button>`;
+  };
+  const evm = WALLETS.filter(w => w.kind === "evm"), sol = WALLETS.filter(w => w.kind === "sol");
+  el.innerHTML = `<div class="wl-h">Ethereum wallets · earn NFLX</div>${evm.map(row).join("")}
+    <div class="wl-h">Solana wallets</div>${sol.map(row).join("")}`;
+}
+WL_READY = true;
+
 let setMsg = "";
 
 async function signInMessage(chain, address){
@@ -1502,24 +1592,7 @@ function noWallet(kind){
 }
 function afterLink(){ renderAll(); $("#lgMsg").textContent = setMsg; }
 
-async function linkSolana(){
-  const p = detect().sol;
-  if (!p) return noWallet("sol");
-  let ok = false;
-  try {
-    const res = await p.connect();
-    const address = (res && res.publicKey ? res.publicKey : p.publicKey).toString();
-    const { nonce, message } = await signInMessage("Solana", address);
-    const signed = await p.signMessage(new TextEncoder().encode(message), "utf8");
-    setMsg = "";
-    ok = await finishSignIn("Solana", address, message, nonce, toB64(new Uint8Array(signed.signature || signed)));
-    if (ok) toast("🔗 Signed in with Phantom");
-  } catch(e){ setMsg = "Sign-in cancelled or refused by the wallet."; }
-  afterLink(); return ok;
-}
-async function linkEvm(){
-  const eth = detect().evm;
-  if (!eth) return noWallet("evm");
+async function linkEvmWith(eth, name){
   let ok = false;
   try {
     const [address] = await eth.request({ method:"eth_requestAccounts" });
@@ -1528,10 +1601,47 @@ async function linkEvm(){
     const signature = await eth.request({ method:"personal_sign", params:[hexMsg, address] });
     setMsg = "";
     ok = await finishSignIn("Ethereum", address, message, nonce, signature);
-    if (ok) toast("🔗 Signed in with MetaMask");
+    if (ok) toast(`🔗 Signed in with ${name}`);
   } catch(e){ setMsg = "Sign-in cancelled or refused by the wallet."; }
   afterLink(); return ok;
 }
+async function linkSolWith(w){
+  let ok = false;
+  try {
+    let address, sign;
+    if (w.standard) {
+      const { accounts } = await w.standard.features["standard:connect"].connect();
+      const account = accounts && accounts[0]; if (!account) throw new Error("no account");
+      address = account.address;
+      sign = async bytes => { const [r] = await w.standard.features["solana:signMessage"].signMessage({ account, message: bytes }); return r.signature; };
+    } else {
+      const res = await w.legacy.connect();
+      address = (res && res.publicKey ? res.publicKey : w.legacy.publicKey).toString();
+      sign = async bytes => { const r = await w.legacy.signMessage(bytes, "utf8"); return r.signature || r; };
+    }
+    const { nonce, message } = await signInMessage("Solana", address);
+    const sig = await sign(new TextEncoder().encode(message));
+    setMsg = "";
+    ok = await finishSignIn("Solana", address, message, nonce, toB64(new Uint8Array(sig)));
+    if (ok) toast(`🔗 Signed in with ${w.name}`);
+  } catch(e){ setMsg = "Sign-in cancelled or refused by the wallet."; }
+  afterLink(); return ok;
+}
+async function linkWallet(id){
+  const w = WALLETS.find(x => x.id === id); if (!w) return false;
+  if (!w.detected) {
+    const k = w.known;
+    if (isMobile && k.app) { location.href = k.app(selfUrl()); return false; }
+    if (isMobile) { setMsg = `Open ${k.name}, go to its built-in browser and visit ${location.host}`; afterLink(); return false; }
+    window.open(k.install, "_blank", "noopener");
+    setMsg = `${k.name} isn't installed in this browser. Install it, then reload Nutflix.`;
+    afterLink(); return false;
+  }
+  return w.kind === "evm" ? linkEvmWith(w.provider, w.name) : linkSolWith(w);
+}
+// kept for older callers
+const linkSolana = () => { const w = walletList().find(x => x.kind === "sol" && x.detected); return w ? linkWallet((WALLETS = walletList(), w.id)) : noWallet("sol"); };
+const linkEvm = () => { const w = walletList().find(x => x.kind === "evm" && x.detected); return w ? linkWallet((WALLETS = walletList(), w.id)) : noWallet("evm"); };
 function linkDemo(){
   if (API) return false;                  // the live site only accepts real wallets
   const address = "0xDEMO" + toHex(crypto.getRandomValues(new Uint8Array(18)));
@@ -1592,8 +1702,7 @@ function renderSettings(){
         </div>` : `
         <div class="small" style="margin:0 0 10px">Link a wallet to earn $NUT. You'll sign a short message to prove it's yours. It's free and sends no transaction.</div>
         <div class="btns">
-          <button class="btn play sm" id="stSol">◎ Phantom (Solana)${d.sol ? "" : " · not detected"}</button>
-          <button class="btn play sm" id="stEvm">🦊 MetaMask (Ethereum)${d.evm ? "" : " · not detected"}</button>
+          <button class="btn play sm" id="stPick">👛 Choose a wallet</button>
           ${API ? "" : `<button class="btn info sm" id="stDemo">🧪 Demo wallet</button>`}
         </div>`}
       ${setMsg ? `<div class="small" style="color:#ff8a7a">${esc(setMsg)}</div>` : ""}
@@ -1617,8 +1726,7 @@ $("#meAv").onclick = () => { hideTempt(); clearTimeout(temptT); $("#browse").sty
 $("#settings").onclick = e => {
   const t = e.target.closest("button") || e.target, id = t.id;
   if (e.target.id === "settings" || id === "stClose") { $("#settings").classList.remove("open"); return; }
-  if (id === "stSol") linkSolana();
-  if (id === "stEvm") linkEvm();
+  if (id === "stPick") { $("#settings").classList.remove("open"); openSignin(""); }
   if (id === "stDemo") linkDemo();
   if (id === "stUnlink") { $("#settings").classList.remove("open"); signOut().then(()=>showLogin("")); }
   if (id === "stAcct") { $("#settings").classList.remove("open"); openAccount(); }
@@ -1630,10 +1738,7 @@ let GUEST = false;
 function renderLogin(){
   const w = st.wallet;
   $("#lgBack").innerHTML = w ? `<button class="lg-cont" id="lgCont">▶ Continue as ${esc(short(w.address))} · ${esc(w.chain)}</button>` : "";
-  const d = detect();
-  const nd = isMobile ? `<small class="nd">opens the app</small>` : `<small class="nd">not detected</small>`;
-  $("#lgSol").innerHTML = "◎ Continue with Phantom" + (d.sol ? "" : nd);
-  $("#lgEvm").innerHTML = "🦊 MetaMask / Robinhood Wallet" + (d.evm ? "" : nd);
+  renderWallets();
   $("#lgDemo").style.display = API ? "none" : "";
 }
 function enter(asGuest){
@@ -1654,22 +1759,30 @@ function showLogin(msg){
   renderLogin(); window.scrollTo(0,0);
   if (msg) openSignin(msg);
 }
-const openSignin = msg => { renderLogin(); $("#lgMsg").textContent = msg || ""; $("#signin").classList.add("open"); };
+// sign-in opens over whatever the visitor is looking at; Back / ✕ returns them there
+const openSignin = msg => {
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  renderLogin(); $("#lgMsg").textContent = msg || "";
+  const onLanding = document.body.classList.contains("pre");
+  $("#lgBackBtn").textContent = onLanding ? "← Back" : "← Back to browsing";
+  $("#lgGuest2").style.display = onLanding || !GUEST ? "" : "none";
+  $("#signin").classList.add("open");
+};
 const closeSignin = () => $("#signin").classList.remove("open");
 async function onLoginClick(e){
   if (e.target.id === "signin") return closeSignin();
   const id = (e.target.closest("button")||{}).id;
   if (id === "lgOpen" || id === "lgOpen2") openSignin("");
-  if (id === "lgClose") closeSignin();
+  if (id === "lgClose" || id === "lgBackBtn") closeSignin();
+  const wb = e.target.closest("[data-w]");
+  if (wb && await linkWallet(wb.dataset.w)) { closeSignin(); enter(false); return; }
   if (id === "lgCont") enter(false);
   if (id === "lgGuest" || id === "lgGuest2") { closeSignin(); enter(true); }
-  if (id === "lgSol" && await linkSolana()) { closeSignin(); enter(false); }
-  if (id === "lgEvm" && await linkEvm()) { closeSignin(); enter(false); }
   if (id === "lgDemo" && linkDemo()) { closeSignin(); enter(false); }
 }
 $("#login").onclick = onLoginClick;
 $("#signin").onclick = onLoginClick;
-$("#guestPill").onclick = () => showLogin("");
+$("#guestPill").onclick = () => openSignin("");
 { const order = [...shows].sort((a,b)=>(a.t.length*7%5)-(b.t.length*7%5));
   $("#lgbg").innerHTML = [...order, ...shows, ...order, ...shows].slice(0,56).map(s=>`<div class="lg-tile">${poster(s)}</div>`).join(""); }
 renderLogin();
