@@ -35,7 +35,23 @@ Opens the site with the API and a local D1 database on http://localhost:8787.
 
 ## NFLX stock-token payouts (Robinhood Chain)
 
-Each claim queues a payout of `NFLX_PER_CLAIM × streak bonus` NFLX to the user's address. Once a day
+Each claim queues a payout to the user's address, computed from how much $NUT they hold, for how long,
+and how many days they watched:
+
+```
+NFLX = NFLX_PER_CLAIM × hold × time × watch      (capped at MAX_PER_USER_NFLX per wallet per day)
+hold  = 1 + log10(balance / 1,000)   1x at 1,000 $NUT · 2x at 10,000 · max 3x
+time  = 1 + 5% per day held          max 2x from day 21 · back to day 1 if the balance drops under 1,000
+watch = 1 + 3% per day watched       max 1.9x
+```
+
+Example: 10,000 $NUT held for 11 days, 10 days watched, base 0.001 → 0.001 × 2 × 1.5 × 1.3 = 0.0039 NFLX.
+
+**Which $NUT counts:** until your token exists, the site's $NUT points. Once you launch $NUT on Robinhood Chain,
+add `NUT_TOKEN_ADDRESS`: the server then reads each wallet's real on-chain balance at every claim (only
+Ethereum-compatible wallets can hold it, so Solana sign-ins stop qualifying).
+
+ Once a day
 (cron `10 0 * * *`, 00:10 UTC) the Worker sends every pending payout from a treasury wallet as an ERC-20
 transfer on Robinhood Chain. Only Ethereum-compatible addresses (Robinhood Wallet, MetaMask) receive them.
 
@@ -54,7 +70,9 @@ transfer on Robinhood Chain. Only Ethereum-compatible addresses (Robinhood Walle
    | `NFLX_TOKEN_ADDRESS` | Text | NFLX token contract on Robinhood Chain |
    | `RPC_URL` | Text | Robinhood Chain RPC (`https://…`) |
    | `EXPLORER_URL` | Text | explorer base URL, for transaction links |
-   | `NFLX_PER_CLAIM` | Text | e.g. `0.001` (before the up-to-2x streak bonus) |
+   | `NFLX_PER_CLAIM` | Text | base amount, e.g. `0.001` (before the hold × time × watch bonuses) |
+   | `MAX_PER_USER_NFLX` | Text | most one wallet can get per day, e.g. `0.01` |
+   | `NUT_TOKEN_ADDRESS` | Text | *(later)* your $NUT token on Robinhood Chain, to count real holdings |
    | `MAX_DAILY_NFLX` | Text | hard cap per UTC day, e.g. `0.1` |
    | `PAYOUTS_ENABLED` | Text | `false` first, `true` when you're ready |
 

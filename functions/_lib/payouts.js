@@ -14,6 +14,14 @@
 //   MAX_DAILY_NFLX        text    total NFLX the treasury may send per UTC day (default 0.1)
 //   CHAIN_ID              text    default 4663
 //   EXPLORER_URL          text    block explorer base URL, for transaction links
+//   MAX_PER_USER_NFLX     text    most NFLX one wallet can get in a day (default 0.01)
+//   NUT_TOKEN_ADDRESS     text    your $NUT token on Robinhood Chain, once launched. When set, "holding"
+//                                 is the wallet's real on-chain balance instead of the site's points.
+//
+// Daily amount = NFLX_PER_CLAIM × hold bonus × time bonus × watch bonus, capped per wallet:
+//   hold  = 1 + log10(balance / 1,000)   1x at 1,000 $NUT, 2x at 10,000, max 3x
+//   time  = 1 + 5% per day held          max 2x (day 21+); resets when the balance drops under 1,000
+//   watch = 1 + 3% per day watched       max 1.9x
 
 import { ethers } from "ethers";
 
@@ -25,12 +33,28 @@ const ERC20 = [
 ];
 const utcDay = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 
+export const MIN_HOLD = 1000;
+export function rewardFactors({ balance, holdDays, watchDays }) {
+  const hold = balance >= MIN_HOLD ? Math.min(1 + Math.log10(balance / MIN_HOLD), 3) : 0;
+  const time = Math.min(1 + Math.max(holdDays - 1, 0) * 0.05, 2);
+  const watch = Math.min(1 + Math.max(watchDays, 0) * 0.03, 1.9);
+  const r = x => Math.round(x * 100) / 100;
+  return { hold: r(hold), time: r(time), watch: r(watch), total: r(hold) * r(time) * r(watch) };
+}
+export function nflxAmount(env, factors) {
+  const c = payoutConfig(env);
+  const raw = Number(c.perClaim) * factors.total;
+  return Math.min(raw, Number(c.maxPerUser)).toFixed(6);
+}
+
 export function payoutConfig(env) {
   const num = (v, d) => (v !== undefined && v !== "" && Number.isFinite(Number(v)) && Number(v) >= 0 ? String(v).trim() : d);
   const cfg = {
     enabled: String(env.PAYOUTS_ENABLED || "").trim().toLowerCase() === "true",
     perClaim: num(env.NFLX_PER_CLAIM, "0.001"),
     maxDaily: num(env.MAX_DAILY_NFLX, "0.1"),
+    maxPerUser: num(env.MAX_PER_USER_NFLX, "0.01"),
+    nutToken: ethers.isAddress((env.NUT_TOKEN_ADDRESS || "").trim()) ? env.NUT_TOKEN_ADDRESS.trim() : "",
     chainId: Number(env.CHAIN_ID || 4663),
     token: (env.NFLX_TOKEN_ADDRESS || "").trim(),
     rpc: (env.RPC_URL || "").trim(),
@@ -49,7 +73,9 @@ export function payoutConfig(env) {
 /** Public, non-secret view of the payout settings. */
 export function publicPayoutInfo(env) {
   const c = payoutConfig(env);
-  return { enabled: c.enabled && c.ready, perClaim: c.perClaim, chainId: c.chainId, token: c.ready ? c.token : null, explorer: c.explorer || null };
+  return { enabled: c.enabled && c.ready, perClaim: c.perClaim, maxPerUser: c.maxPerUser, chainId: c.chainId,
+    token: c.ready ? c.token : null, explorer: c.explorer || null, holdSource: c.nutToken && /^https:\/\//.test(c.rpc) ? "onchain" : "points",
+    nutToken: c.nutToken || null };
 }
 
 export async function ensurePayoutSchema(db) {
@@ -60,11 +86,22 @@ export async function ensurePayoutSchema(db) {
     UNIQUE(address, day))`).run();
 }
 
-/** Queue the payout for a claim. Ethereum-compatible addresses only; one per address per day. */
-export async function queuePayout(db, env, { address, chain, day, streakMult }) {
+/** $NUT the wallet holds: its on-chain balance once NUT_TOKEN_ADDRESS is set, the site's points before. */
+export async function holdingBalance(env, { address, chain, points }, deps) {
   const c = payoutConfig(env);
-  if (chain !== "Ethereum" || !(Number(c.perClaim) > 0)) return null;
-  const amount = (Number(c.perClaim) * streakMult).toFixed(6);
+  if (!c.nutToken || !/^https:\/\//.test(c.rpc)) return { balance: points, source: "points" };
+  if (chain !== "Ethereum") return { balance: 0, source: "onchain" };
+  const provider = deps?.provider || new ethers.JsonRpcProvider(c.rpc, c.chainId, { staticNetwork: true });
+  const nut = deps?.nut || new ethers.Contract(c.nutToken, ERC20, provider);
+  const [bal, dec] = await Promise.all([nut.balanceOf(address), nut.decimals()]);
+  return { balance: Number(ethers.formatUnits(bal, dec)), source: "onchain" };
+}
+
+/** Queue the payout for a claim. Ethereum-compatible addresses only; one per address per day. */
+export async function queuePayout(db, env, { address, chain, day, factors }) {
+  const c = payoutConfig(env);
+  if (chain !== "Ethereum" || !(Number(c.perClaim) > 0) || !(factors.total > 0)) return null;
+  const amount = nflxAmount(env, factors);
   await ensurePayoutSchema(db);
   await db.prepare(`INSERT INTO payouts (address, day, amount, status, created_at) VALUES (?, ?, ?, 'pending', ?)
                     ON CONFLICT(address, day) DO NOTHING`).bind(address, day, amount, Date.now()).run();

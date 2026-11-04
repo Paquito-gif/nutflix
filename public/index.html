@@ -260,6 +260,10 @@
   .ac-empty{text-align:center;padding:10px 0}
   .nflx-line{margin-top:6px;font-weight:800;color:#ffd34d;font-size:15px}
   .nflx-line span{display:block;font-weight:600;font-size:11px;color:var(--muted)}
+  .nfx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .nfx div{background:#0b0806;border:1px solid #ffffff12;border-radius:8px;padding:10px}
+  .nfx b{display:block;font-family:"Bebas Neue";font-size:24px;line-height:1;color:#ffd34d}
+  .nfx span{font-size:11px;color:var(--muted)}
   .ac-hist a{color:#7fd0ff;font-size:12px;white-space:nowrap}
   .ac-empty .ac-art{margin:0 auto 10px;width:110px}
   @media (max-width:560px){.ac-stats{grid-template-columns:repeat(2,1fr)}.ac-art{width:64px;flex-basis:64px}}
@@ -980,7 +984,7 @@ function loading(done, text, still){
    - "local":  this browser only, one saved account per wallet
    ===================================================================== */
 const MIN_HOLD = 1000, STARTER_BAG = 1000;
-let API = false, SKEW = 0, SESSION = null, PLAYING = "", PAYINFO = null, PAYOUTS = [];
+let API = false, SKEW = 0, SESSION = null, PLAYING = "", PAYINFO = null, PAYOUTS = [], REWARD = null;
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const localDay = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 // with the backend, "today" is the server's UTC day so streaks can't be gamed with the clock
@@ -1038,6 +1042,7 @@ function applyServer(acc){
   st = Object.assign(blank(), acc.state, { wallet });
   syncedProfiles = JSON.stringify(st.profiles || []);
   if (Array.isArray(acc.payouts)) PAYOUTS = acc.payouts;
+  if (acc.preview || acc.reward && typeof acc.reward === "object") REWARD = acc.preview || acc.reward;
   accounts[acctKey()] = st; lsSet(AKEY, accounts); lsSet(CKEY, acctKey());
 }
 async function syncProfiles(){
@@ -1124,7 +1129,25 @@ async function markWatched(title){
 }
 const nflxFmt = v => String(Number(v).toFixed(6)).replace(/0+$/,"").replace(/\.$/,"");
 const payEnabled = () => !!(API && PAYINFO && PAYINFO.enabled);
-const nflxToday = () => (Number(PAYINFO.perClaim) * mult()).toFixed(6);
+const nflxToday = () => REWARD && REWARD.nflx ? REWARD.nflx : "0";
+const fx = n => (Math.round(n * 100) / 100).toFixed(2).replace(/0$/, "") + "x";
+function nflxBreakdown(){
+  const r = REWARD, f = r.factors, onchain = r.source === "onchain";
+  const head = !r.holding
+    ? `<div class="nflx-line" style="color:var(--muted)">Hold at least 1,000 $NUT${onchain ? " in your wallet" : ""} to earn NFLX</div>`
+    : `<div class="nflx-line">${claimedTodayNflx() ? "✓ Today's NFLX" : "Today's NFLX"}: + ${nflxFmt(r.nflx)} NFLX <span>stock token on Robinhood Chain, sent automatically within 24h</span></div>`;
+  return `<div class="rw-row" style="display:block">
+    <div class="rw-lbl">NFLX reward</div>
+    ${head}
+    <div class="nfx">
+      <div><b>💰 ${fx(f.hold)}</b><span>${fmt(r.balance)} $NUT ${onchain ? "in wallet" : "held"}</span></div>
+      <div><b>⏳ ${fx(f.time)}</b><span>held ${r.holdDays} day${r.holdDays===1?"":"s"}</span></div>
+      <div><b>📺 ${fx(f.watch)}</b><span>${r.watchDays} day${r.watchDays===1?"":"s"} watched</span></div>
+    </div>
+    <div class="small" style="margin:8px 0 0">${nflxFmt(PAYINFO.perClaim)} NFLX × hold × time × watch, max ${nflxFmt(PAYINFO.maxPerUser)} per day. More $NUT held, longer, and more days watched = more NFLX.</div>
+  </div>`;
+}
+const claimedTodayNflx = () => PAYOUTS.some(p => p.day === ld());
 const txUrl = h => PAYINFO && PAYINFO.explorer && h ? `${PAYINFO.explorer}/tx/${h}` : null;
 
 async function getStarter(){
@@ -1154,7 +1177,8 @@ async function claimReward(){
 
 /* ---------- rewards panel ---------- */
 function renderRewards(){
-  const watched = st.watched === ld(), holds = st.bal >= MIN_HOLD, claimed = st.claimed === ld();
+  const watched = st.watched === ld(), claimed = st.claimed === ld();
+  const holds = API && REWARD ? REWARD.holding : st.bal >= MIN_HOLD;
   const shownStreak = currentStreak();
   $("#chip").textContent = st.wallet ? `🥜 ${fmt(st.bal)} $NUT · 🔥 ${shownStreak}` : "🥜 Nut Rewards";
   // the whole of November, coloured like the My Account calendar
@@ -1185,7 +1209,7 @@ function renderRewards(){
 
     <div class="rw-row">
       <div><div class="rw-lbl">Your bag</div><div class="rw-big">${fmt(st.bal)} <span style="font-size:22px;color:var(--red)">$NUT</span></div>
-        <div class="small" style="margin:2px 0 0">Earned from rewards: ${fmt(st.earned)} $NUT</div></div>
+        <div class="small" style="margin:2px 0 0">Earned from rewards: ${fmt(st.earned)} $NUT${API && REWARD && REWARD.source === "onchain" ? ` · <b>${fmt(REWARD.balance)} $NUT in your wallet</b>` : ""}</div></div>
       ${buy}
     </div>
 
@@ -1206,10 +1230,9 @@ function renderRewards(){
       <div style="text-align:right"><div class="rw-lbl">Today's reward</div>
         <div class="rw-big" style="font-size:32px;color:#46d369">${claimed ? "Claimed" : "+" + fmt(reward())}</div>
         <div class="small" style="margin:0">1% of bag × ${mult().toFixed(1)}x streak</div>
-        ${payEnabled() ? (st.wallet && st.wallet.chain === "Ethereum"
-          ? `<div class="nflx-line">+ ${nflxFmt(nflxToday())} NFLX <span>stock token, sent automatically within 24h</span></div>`
-          : `<div class="small" style="margin:4px 0 0">NFLX stock rewards go to Robinhood Wallet / MetaMask addresses.</div>`) : ""}</div>
+        ${payEnabled() && !(st.wallet && st.wallet.chain === "Ethereum") ? `<div class="small" style="margin:4px 0 0">NFLX stock rewards go to Robinhood Wallet / MetaMask addresses.</div>` : ""}</div>
     </div>
+    ${payEnabled() && st.wallet && st.wallet.chain === "Ethereum" && REWARD ? nflxBreakdown() : ""}
 
     <div class="btns" style="margin-top:18px">
       <button class="btn play" id="rwClaim" ${watched && holds && !claimed && st.wallet ? "" : "disabled"}>${claimed ? "Come back tomorrow" : "Claim $NUT"}</button>

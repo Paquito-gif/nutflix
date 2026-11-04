@@ -9,7 +9,8 @@
 //   ADMIN_KEY  secret used by /admin.html to list every account
 
 import { recoverPersonalSign } from "../_lib/evm.js";
-import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema } from "../_lib/payouts.js";
+import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema,
+  holdingBalance, rewardFactors, nflxAmount } from "../_lib/payouts.js";
 
 const MIN_HOLD = 1000;            // $NUT you must hold to claim
 const STARTER_BAG = 1000;         // one-time welcome bag
@@ -87,7 +88,7 @@ async function ensureSchema(db) {
 }
 
 const blankState = () => ({
-  bal: 0, earned: 0, watched: null, claimed: null, streak: 0, best: 0,
+  bal: 0, earned: 0, watched: null, claimed: null, streak: 0, best: 0, holdSince: null,
   claims: 0, starter: false, watchLog: [], history: [], profiles: [],
 });
 const readState = row => Object.assign(blankState(), JSON.parse(row.state || "{}"));
@@ -97,6 +98,20 @@ async function writeState(db, address, state) {
 }
 function account(row, state) {
   return { address: row.address, chain: row.chain, createdAt: row.created_at, state, today: utcDay(), serverTime: Date.now() };
+}
+const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+/** How today's NFLX reward is computed for this wallet (balance, days held, days watched → bonuses). */
+async function rewardPreview(env, row, state, today) {
+  let hold;
+  try { hold = await holdingBalance(env, { address: row.address, chain: row.chain, points: state.bal }); }
+  catch { hold = { balance: 0, source: "onchain", error: "chain_unreachable" }; }
+  const holding = hold.balance >= 1000;
+  const since = holding ? (state.holdSince || today) : null;
+  const holdDays = since ? daysBetween(since, today) + 1 : 0;
+  const watchDays = (state.watchLog || []).length;
+  const factors = rewardFactors({ balance: hold.balance, holdDays, watchDays });
+  return { balance: hold.balance, source: hold.source, error: hold.error, holding, holdSince: since, holdDays, watchDays,
+    factors, nflx: row.chain === "Ethereum" && holding ? nflxAmount(env, factors) : null };
 }
 const pushHistory = (state, entry) => { state.history = [...state.history, entry].slice(-MAX_HISTORY); };
 
@@ -218,7 +233,7 @@ export async function onRequest({ request, env, params }) {
 
     if (route === "me" && method === "GET") {
       await db.prepare("UPDATE users SET last_seen = ? WHERE address = ?").bind(Date.now(), row.address).run();
-      return json({ ...account(row, state), payouts: await payoutsFor(db, row.address) });
+      return json({ ...account(row, state), payouts: await payoutsFor(db, row.address), reward: await rewardPreview(env, row, state, today) });
     }
 
     if (route === "logout" && method === "POST") {
@@ -235,7 +250,7 @@ export async function onRequest({ request, env, params }) {
       }
       pushHistory(state, { d: today, at: Date.now(), ty: "watch", t });
       await writeState(db, row.address, state);
-      return json(account(row, state));
+      return json({ ...account(row, state), reward: await rewardPreview(env, row, state, today) });
     }
 
     if (route === "starter" && method === "POST") {
@@ -243,22 +258,25 @@ export async function onRequest({ request, env, params }) {
       state.starter = true; state.bal += STARTER_BAG;
       pushHistory(state, { d: today, at: Date.now(), ty: "starter", n: STARTER_BAG });
       await writeState(db, row.address, state);
-      return json(account(row, state));
+      return json({ ...account(row, state), reward: await rewardPreview(env, row, state, today) });
     }
 
     if (route === "claim" && method === "POST") {
       if (state.claimed === today) return fail(409, "already_claimed_today");
       if (state.watched !== today) return fail(409, "watch_first");
-      if (state.bal < MIN_HOLD) return fail(409, "hold_more");
+      const preview = await rewardPreview(env, row, state, today);
+      if (preview.error) return fail(503, "chain_unreachable");
+      if (!preview.holding) { state.holdSince = null; await writeState(db, row.address, state); return fail(409, "hold_more"); }
+      state.holdSince = preview.holdSince;
       const streak = state.claimed === yesterday ? state.streak + 1 : 1;
       const mult = Math.min(1 + (streak - 1) * 0.1, 2);
       const reward = Math.round(state.bal * 0.01 * mult);
       Object.assign(state, { streak, best: Math.max(state.best, streak), claimed: today, claims: state.claims + 1,
         bal: state.bal + reward, earned: state.earned + reward });
-      const nflx = await queuePayout(db, env, { address: row.address, chain: row.chain, day: today, streakMult: mult });
+      const nflx = await queuePayout(db, env, { address: row.address, chain: row.chain, day: today, factors: preview.factors });
       pushHistory(state, { d: today, at: Date.now(), ty: "claim", n: reward, s: streak, ...(nflx ? { x: nflx } : {}) });
       await writeState(db, row.address, state);
-      return json({ reward, nflx, ...account(row, state), payouts: await payoutsFor(db, row.address) });
+      return json({ reward, nflx, ...account(row, state), payouts: await payoutsFor(db, row.address), preview });
     }
 
     if (route === "profiles" && method === "PUT") {
@@ -272,7 +290,7 @@ export async function onRequest({ request, env, params }) {
       }
       state.profiles = clean;
       await writeState(db, row.address, state);
-      return json(account(row, state));
+      return json({ ...account(row, state), reward: await rewardPreview(env, row, state, today) });
     }
 
     return fail(404, "not_found");
