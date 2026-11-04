@@ -183,9 +183,14 @@
   .ck{display:flex;gap:10px;align-items:center;padding:5px 0;color:#ddd2c6}
   .ck b{width:22px;height:22px;flex:0 0 22px;border-radius:50%;display:grid;place-items:center;background:#333;font-size:12px}
   .ck.ok b{background:#46d369;color:#000}
-  .dots{display:flex;gap:6px;flex-wrap:wrap}
-  .dots span{width:28px;height:28px;border-radius:50%;background:#2a221b;display:grid;place-items:center;font-size:13px}
-  .dots span.on{background:var(--red)}
+  .dots{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-top:6px}
+  .dots span{aspect-ratio:1;border-radius:50%;background:#1f1812;display:grid;place-items:center;font-size:12px;color:#ffffff66;font-weight:700}
+  .dots span.on{background:var(--red);color:#fff}
+  .dots span.ok{background:#1f4d2a;color:#9be3a8}
+  .dots span.miss{background:#2a2420;color:#6e6256}
+  .dots span.pre{background:#16110d;color:#ffffff33}
+  .dots span.fut{opacity:.6}
+  .dots span.today{outline:2px solid var(--text);outline-offset:-2px;opacity:1}
   .small{font-size:12px;color:var(--muted);line-height:1.5;margin-top:14px}
   .btn.sm{padding:8px 14px;font-size:14px}
   .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
@@ -1142,8 +1147,20 @@ function renderRewards(){
   const watched = st.watched === ld(), holds = st.bal >= MIN_HOLD, claimed = st.claimed === ld();
   const shownStreak = currentStreak();
   $("#chip").textContent = st.wallet ? `🥜 ${fmt(st.bal)} $NUT · 🔥 ${shownStreak}` : "🥜 Nut Rewards";
-  const n = Math.min(shownStreak,7);
-  const dots = [...Array(7)].map((_,i)=>`<span class="${i<n?"on":""}">${i<n?"🥜":i+1}</span>`).join("");
+  // the whole of November, coloured like the My Account calendar
+  const today = ld(), year = today.slice(0,4);
+  const seen = new Set(st.watchLog || []);
+  const paid = new Set((st.history||[]).filter(h=>h.ty==="claim").map(h=>h.d).concat(st.claimed ? [st.claimed] : []));
+  const joined = st.wallet && st.wallet.linkedAt ? (API ? new Date(st.wallet.linkedAt).toISOString().slice(0,10) : localDay(new Date(st.wallet.linkedAt))) : today;
+  let held = 0;
+  const dots = [...Array(30)].map((_,i)=>{
+    const key = `${year}-11-${String(i+1).padStart(2,"0")}`;
+    let cls = "fut", mark = i+1;
+    if (seen.has(key)) { held++; cls = paid.has(key) ? "on" : "ok"; mark = paid.has(key) ? "🥜" : "✓"; }
+    else if (key < today && key >= joined) { cls = "miss"; mark = "✕"; }
+    else if (key < today) cls = "pre";
+    return `<span class="${cls} ${key===today?"today":""}" title="Nov ${i+1}">${mark}</span>`;
+  }).join("");
   const buy = API
     ? (st.starter ? `<button class="btn info sm" disabled>Starter bag claimed</button>` : `<button class="btn play sm" id="rwBuy" ${st.wallet ? "" : "disabled"}>🎁 Get starter bag</button>`)
     : `<button class="btn info sm" id="rwBuy" ${st.wallet ? "" : "disabled"}>+ Get 1,000 $NUT</button>`;
@@ -1169,8 +1186,13 @@ function renderRewards(){
       <div class="ck ${claimed ? "ok" : ""}"><b>${claimed ? "✓" : ""}</b>Claim your daily reward</div>
     </div>
 
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Streak · ${shownStreak} day${shownStreak===1?"":"s"} · ${held}/30 days held in November</div>
+      <div class="dots">${dots}</div>
+    </div>
+
     <div class="rw-row">
-      <div><div class="rw-lbl">Streak · ${shownStreak} day${shownStreak===1?"":"s"}</div><div class="dots">${dots}</div></div>
+      <div><div class="rw-lbl">Bonus</div><div class="small" style="margin:0">+0.1x per day of streak, up to 2x</div></div>
       <div style="text-align:right"><div class="rw-lbl">Today's reward</div>
         <div class="rw-big" style="font-size:32px;color:#46d369">${claimed ? "Claimed" : "+" + fmt(reward())}</div>
         <div class="small" style="margin:0">1% of bag × ${mult().toFixed(1)}x streak</div></div>
