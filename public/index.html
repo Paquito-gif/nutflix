@@ -235,6 +235,33 @@
   .tempt .tname{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#d8261c;margin-bottom:4px}
   .avatar img{width:88%;height:88%;object-fit:contain;margin-top:8%;display:block}
   .tempt .bubble .btn.info{background:#e6ddd3;color:#1a0f0a}
+  .lb-box{max-width:640px}
+  .lb-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);gap:10px;align-items:end;margin:6px 0 16px}
+  .lb-pod{background:#0b0806;border:1px solid #ffffff14;border-radius:10px;padding:12px 8px;text-align:center;position:relative}
+  .lb-pod.p1{border-color:#ffd34d66;background:linear-gradient(#ffd34d14,#0b0806);padding-top:18px}
+  .lb-pod .av{width:62px;height:62px;margin:0 auto 8px;border-radius:10px;display:grid;place-items:center;overflow:hidden}
+  .lb-pod.p1 .av{width:78px;height:78px}
+  .lb-pod .av img{width:88%;height:88%;object-fit:contain}
+  .lb-pod .md{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:24px}
+  .lb-pod b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-pod .sk{font-family:"Bebas Neue";font-size:30px;line-height:1;color:#ffd34d;margin-top:4px}
+  .lb-pod small{font-size:11px;color:var(--muted)}
+  .lb-list{display:flex;flex-direction:column;gap:4px;max-height:44vh;overflow-y:auto}
+  .lb-r{display:grid;grid-template-columns:34px 36px 1fr auto auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:#0b0806}
+  .lb-r.me{outline:1px solid #46d36988;background:#46d36912}
+  .lb-r .rk{font-family:"Bebas Neue";font-size:20px;color:var(--muted);text-align:center}
+  .lb-r .av{width:36px;height:36px;border-radius:7px;display:grid;place-items:center;overflow:hidden}
+  .lb-r .av img{width:88%;height:88%;object-fit:contain}
+  .lb-r .nm{min-width:0}
+  .lb-r .nm b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-r .nm small{font-size:11px;color:var(--muted)}
+  .lb-r .sk{font-family:"Bebas Neue";font-size:22px;color:#ffd34d;white-space:nowrap}
+  .lb-r .bs{font-size:12px;color:var(--muted);white-space:nowrap}
+  @media (max-width:560px){.lb-r{grid-template-columns:28px 32px 1fr auto}.lb-r .bs{display:none}
+    .lb-top{gap:6px}.lb-pod{padding:10px 4px}.lb-pod .av{width:48px;height:48px}.lb-pod.p1 .av{width:58px;height:58px}
+    .lb-pod b{font-size:12px}.lb-pod .sk{font-size:24px}.lb-pod small{font-size:10px}
+    .hdr-r{gap:4px}.hdr-r .gear,.hdr-r .me-av{width:32px;height:32px;flex-basis:32px;font-size:16px}
+    header .logo .mini{display:none}}
   .ac-box{max-width:620px}
   .ac-head{display:flex;gap:16px;align-items:center}
   .ac-art{width:86px;flex:0 0 86px}
@@ -318,6 +345,7 @@
   <div class="hdr-r">
     <span class="tag" id="nnn">No Nut November · day ?/30</span>
     <button class="chip" id="chip">🥜 Nut Rewards</button>
+    <button class="gear" id="lbBtn" title="Leaderboard" aria-label="Leaderboard">🏆</button>
     <button class="gear" id="acctBtn" title="My account" aria-label="My account">👤</button>
     <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
     <button class="me-av" id="meAv" style="display:none" aria-label="Switch profile"></button>
@@ -405,6 +433,7 @@
   </div>
   <img id="timg" src="peachy.webp" alt="" draggable="false">
 </div>
+<div class="modal" id="lb"><div class="box rbox lb-box"><div class="in" id="lbBody"></div></div></div>
 <div class="modal" id="acct"><div class="box rbox ac-box"><div class="in" id="acctBody"></div></div></div>
 <div class="modal" id="pmodal"><div class="box rbox"><div class="in" id="pe"></div></div></div>
 <div class="toast" id="toast"></div>
@@ -1270,7 +1299,7 @@ function renderRewardsLive(){
     </div>
 
     <div class="rw-row" style="display:block">
-      <div class="rw-lbl">Streak · ${streakNow} day${streakNow===1?"":"s"} · ${held}/30 days in November</div>
+      <div class="rw-lbl" style="display:flex;justify-content:space-between;gap:8px">Streak · ${streakNow} day${streakNow===1?"":"s"} · ${held}/30 days in November <button class="ac-copy" id="rwLb" style="font-size:12px">🏆 Leaderboard</button></div>
       <div class="dots">${dots}</div>
     </div>
     ${calc}
@@ -1351,6 +1380,7 @@ $("#rewards").onclick = async e => {
   if (e.target.id === "rewards" || id === "rwClose") { $("#rewards").classList.remove("open"); return; }
   if (id === "rwSettings") { $("#rewards").classList.remove("open"); openSignin("Sign in with your wallet to earn NFLX 🥜"); return; }
   if (id === "rwAcct") { $("#rewards").classList.remove("open"); openAccount(); return; }
+  if (id === "rwLb") { $("#rewards").classList.remove("open"); openLeaderboard(); return; }
   if (id === "rwBuy") await getStarter();
   if (id === "rwClaim") await claimReward();
   renderRewards(); renderAccount();
@@ -1444,6 +1474,55 @@ function nflxSection(w){
     }).join("") : `<div class="small">Claim your daily $NUT to earn NFLX.</div>`}</div>
     ${PAYINFO.token ? `<div class="small" style="margin:6px 0 0">Token contract: <code>${esc(short(PAYINFO.token))}</code>. Only trust this address, never "claim" links sent by DM.</div>` : ""}`;
 }
+/* ---------- Leaderboard: best current watch streaks ---------- */
+const lbAvatar = r => `<span class="av" style="background:${/^#[0-9a-fA-F]{6}$/.test(r.bg||"") ? r.bg : "#3a3a3a"}"><img src="${avatarImg(r.avatar)}" alt=""></span>`;
+const lbName = r => r.name ? esc(r.name) : esc(r.who);
+async function openLeaderboard(){
+  $("#lb").classList.add("open");
+  const el = $("#lbBody");
+  el.innerHTML = `<h4 style="margin:0 0 6px">🏆 Leaderboard</h4><div class="small">Loading…</div>`;
+  let data = null;
+  if (API) {
+    try { const r = await fetch("/api/leaderboard", { cache:"no-store" }); if (r.ok) data = await r.json(); } catch(_) {}
+  }
+  if (!data) {   // no backend (local preview): just this browser's accounts
+    const today = ld(), prev = d => new Date(Date.parse(d) - 864e5).toISOString().slice(0,10);
+    data = { rows: Object.values(accounts).filter(a => a && a.wallet && (a.watchLog||[]).length).map(a => {
+      const set = new Set(a.watchLog); let cur = 0, d = set.has(today) ? today : prev(today);
+      while (set.has(d)) { cur++; d = prev(d); }
+      const p = (a.profiles||[])[0];
+      return { who: short(a.wallet.address), name: p && p.name, avatar: p && p.avatar, bg: p && p.bg, streak: cur, best: Math.max(cur, a.best||0), days: a.watchLog.length };
+    }).sort((x,y) => y.streak - x.streak || y.best - x.best), local: true };
+    data.players = data.rows.length;
+  }
+  const me = st.wallet ? short(st.wallet.address) : null;
+  const rows = data.rows || [];
+  if (!rows.length) {
+    el.innerHTML = `<h4 style="margin:0 0 6px">🏆 Leaderboard</h4>
+      <div class="ac-empty"><div class="ac-art">${hodlArt(1)}</div><p class="small">Nobody on the board yet. Watch an episode today and you're #1.</p></div>
+      <div class="btns" style="margin-top:14px"><button class="btn info" id="lbClose">Close</button></div>`;
+    return;
+  }
+  const medal = ["🥇","🥈","🥉"];
+  const pod = [rows[1], rows[0], rows[2]].map((r, i) => r ? `<div class="lb-pod ${i===1?"p1":""}">
+      <span class="md">${medal[[1,0,2][i]]}</span>${lbAvatar(r)}<b>${lbName(r)}</b>
+      <div class="sk">🔥 ${r.streak}</div><small>best ${r.best} · ${r.days} day${r.days===1?"":"s"}</small></div>` : `<div></div>`).join("");
+  const myRank = me ? rows.findIndex(r => r.who === me) : -1;
+  el.innerHTML = `
+    <h4 style="margin:0 0 4px">🏆 Leaderboard</h4>
+    <div class="small" style="margin:0 0 8px">Longest No Nut November watch streaks: days in a row with at least one episode. ${data.players} player${data.players===1?"":"s"}${data.local ? " in this browser" : ""}.</div>
+    ${me ? `<div class="small" style="margin:0 0 10px;color:#46d369">${myRank >= 0 ? `You're #${myRank+1} with a 🔥 ${rows[myRank].streak}-day streak` : "You're not on the board yet. Watch an episode today."}</div>` : ""}
+    <div class="lb-top">${pod}</div>
+    <div class="lb-list">${rows.slice(3).map((r, i) => `<div class="lb-r ${r.who===me?"me":""}">
+      <span class="rk">${i+4}</span>${lbAvatar(r)}
+      <span class="nm"><b>${lbName(r)}${r.who===me ? " · you" : ""}</b><small>${esc(r.who)}</small></span>
+      <span class="sk">🔥 ${r.streak}</span><span class="bs">best ${r.best}</span></div>`).join("")}</div>
+    <div class="btns" style="margin-top:16px"><button class="btn info" id="lbClose">Close</button></div>
+    <div class="small">Only short wallet addresses and profile names are shown.</div>`;
+}
+$("#lbBtn").onclick = openLeaderboard;
+$("#lb").onclick = e => { if (e.target.id === "lb" || e.target.id === "lbClose") $("#lb").classList.remove("open"); };
+
 function openAccount(){ renderAccount(); $("#acct").classList.add("open"); }
 $("#acct").onclick = async e => {
   const id = (e.target.closest("button") || e.target).id;
@@ -1841,7 +1920,7 @@ renderRewards();
 
 $("#nnn").textContent = DAY ? `No Nut November · day ${DAY}/30 · stay strong` : "No Nut November · off-season, treat yourself";
 if (DAY) $("#herop").textContent += ` Day ${DAY}: only ${30-DAY} days to go. Hang in there.`;
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeSignin(); $("#acct").classList.remove("open"); $("#pmodal").classList.remove("open"); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ $("#lb").classList.remove("open"); closeSignin(); $("#acct").classList.remove("open"); $("#pmodal").classList.remove("open"); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
 </script>
 </body>
 </html>

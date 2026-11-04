@@ -119,6 +119,18 @@ async function rewardPreview(env, db, row, state, today, deps = env.__TEST_CHAIN
     next: next && { name: next.name, icon: next.icon, minUsd: next.minUsd, needUsd: Math.max(next.minUsd - usd, 0) },
     factors: f, nflx: tier ? nflxFor(env, f) : null };
 }
+/** Consecutive days watched, ending today (or yesterday if today isn't watched yet), and the best run ever. */
+function watchStreaks(log, today) {
+  const days = [...new Set(log || [])].sort();
+  const set = new Set(days);
+  const prev = d => new Date(Date.parse(d) - 864e5).toISOString().slice(0, 10);
+  let cur = 0, d = set.has(today) ? today : prev(today);
+  while (set.has(d)) { cur++; d = prev(d); }
+  let best = 0, run = 0, last = null;
+  for (const x of days) { run = last && prev(x) === last ? run + 1 : 1; best = Math.max(best, run); last = x; }
+  return { cur, best, days: days.length };
+}
+const shortAddr = a => a.slice(0, 6) + "…" + a.slice(-4);
 const pushHistory = (state, entry) => { state.history = [...state.history, entry].slice(-MAX_HISTORY); };
 
 async function sessionUser(db, request) {
@@ -228,6 +240,19 @@ export async function onRequest({ request, env, params }) {
         catch (e) { return json({ ready: false, reachable: false, enabled: publicPayoutInfo(env).enabled, missing: [], error: String(e.shortMessage || e.message).slice(0, 200) }); }
       }
       return fail(404, "not_found");
+    }
+
+    // public leaderboard: best current watch streaks (short addresses and profile names only)
+    if (route === "leaderboard" && method === "GET") {
+      const today = utcDay();
+      const { results } = await db.prepare("SELECT address, chain, state FROM users").all();
+      const rows = results.map(r => {
+        const s = readState(r), w = watchStreaks(s.watchLog, today), p = (s.profiles || [])[0];
+        return { who: shortAddr(r.address), chain: r.chain, name: p ? p.name : null, avatar: p ? p.avatar : null, bg: p ? p.bg : null,
+          streak: w.cur, best: Math.max(w.best, s.best || 0), days: w.days, videos: s.videos || 0 };
+      }).filter(x => x.days > 0)
+        .sort((a, b) => b.streak - a.streak || b.best - a.best || b.days - a.days || b.videos - a.videos);
+      return json({ today, players: rows.length, rows: rows.slice(0, 50) });
     }
 
     // everything below needs a session
