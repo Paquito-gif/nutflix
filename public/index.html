@@ -737,27 +737,29 @@ let CURRENT = null;   // the profile being used
 
 function renderProfiles(){
   const mine = st.profiles || [];
-  $("#profiles").innerHTML =
-    mine.map((p,i)=>`
+  const own = mine.map((p,i)=>`
       <button class="profile mine" data-c="${i}">
         <div class="avatar" style="background:${p.bg}"><img src="${avatarImg(p.avatar)}" alt="" draggable="false"></div>
         <span>${esc(p.name)}</span>
-      </button>`).join("") +
-    profiles.map((p,i)=>`
+      </button>`).join("");
+  const add = mine.length < MAX_CUSTOM ? `
+      <button class="profile" data-add>
+        <div class="avatar add"><span>+</span></div>
+        <span>${mine.length ? "Add Profile" : "Create your profile"}</span>
+      </button>` : "";
+  const jokes = profiles.map((p,i)=>`
       <button class="profile" data-p="${i}">
         <div class="avatar" style="background:${p.bg}">${p.img ? `<img src="${p.img}" alt="" draggable="false">` : mascot(p.m)}</div>
         <span>${esc(p.name)}</span>
-      </button>`).join("") +
-    (mine.length < MAX_CUSTOM ? `
-      <button class="profile" data-add>
-        <div class="avatar add"><span>+</span></div>
-        <span>Add Profile</span>
-      </button>` : "");
+      </button>`).join("");
+  $("#profiles").innerHTML = own + add + jokes;
 }
 
 /* ---------- profile editor ---------- */
 let pe = { i:-1, name:"", avatar:"hodl", bg:COLORS[0] };
-function openProfileEditor(i){
+let peFirst = false;
+function openProfileEditor(i, first){
+  peFirst = !!first && i < 0;
   const p = i >= 0 ? st.profiles[i] : null;
   pe = p ? { i, name:p.name, avatar:p.avatar, bg:p.bg } : { i:-1, name:"", avatar:AVATARS[(st.profiles||[]).length % AVATARS.length].k, bg:COLORS[(st.profiles||[]).length % COLORS.length] };
   renderEditor();
@@ -766,8 +768,8 @@ function openProfileEditor(i){
 }
 function renderEditor(){
   $("#pe").innerHTML = `
-    <h4 style="margin:0 0 4px">${pe.i >= 0 ? "Edit Profile" : "Add Profile"}</h4>
-    <div class="small" style="margin:0 0 18px">${pe.i >= 0 ? "New look, same willpower." : "Finally, someone else tonight. Pick a name and a face."}</div>
+    <h4 style="margin:0 0 4px">${pe.i >= 0 ? "Edit Profile" : peFirst ? "Create your profile" : "Add Profile"}</h4>
+    <div class="small" style="margin:0 0 18px">${pe.i >= 0 ? "New look, same willpower." : peFirst ? "Welcome to Nutflix. This profile is yours: it follows your wallet everywhere." : "Finally, someone else tonight. Pick a name and a face."}</div>
     <div class="pe-top">
       <div class="avatar pe-prev" style="background:${pe.bg}"><img src="${avatarImg(pe.avatar)}" alt=""></div>
       <div style="flex:1;min-width:0">
@@ -782,7 +784,7 @@ function renderEditor(){
     <div class="pe-colors">${COLORS.map(c=>`<button class="pe-col ${c===pe.bg?"on":""}" data-col="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join("")}</div>
     <div class="btns" style="margin-top:22px">
       <button class="btn play" id="peSave">Save</button>
-      <button class="btn info" id="peCancel">Cancel</button>
+      <button class="btn info" id="peCancel">${peFirst ? "Later" : "Cancel"}</button>
       ${pe.i >= 0 ? `<button class="btn info" id="peDel" style="margin-left:auto;background:#5a1a12">Delete</button>` : ""}
     </div>`;
 }
@@ -1471,7 +1473,8 @@ function enter(asGuest){
   $("#lgMsg").textContent = "";
   window.scrollTo(0,0);
   $("#browse").style.display = "none"; $("#who").classList.add("on");
-  renderRewards();
+  renderProfiles(); renderRewards();
+  if (!asGuest && st.wallet && !(st.profiles||[]).length) setTimeout(()=>openProfileEditor(-1, true), 350);
 }
 function showLogin(msg){
   hideTempt(); clearTimeout(temptT);
