@@ -19,6 +19,18 @@
   ],
   // once a day at 00:10 UTC: send the NFLX payouts queued by the previous day's claims
   "triggers": { "crons": ["10 0 * * *"] },
+  // NFLX payouts on Robinhood Chain (nothing secret here; the treasury key and ADMIN_KEY are dashboard secrets).
+  // NFLX_TOKEN_ADDRESS is the official Netflix Robinhood Token (Series 61 in Robinhood's final terms).
+  // Set PAYOUTS_ENABLED to "true" only once the treasury is funded and the legal side is cleared.
+  "vars": {
+    "RPC_URL": "https://rpc.mainnet.chain.robinhood.com",
+    "EXPLORER_URL": "https://robinhoodchain.blockscout.com",
+    "NFLX_TOKEN_ADDRESS": "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8",
+    "NFLX_PER_CLAIM": "0.01",
+    "MAX_PER_USER_NFLX": "0.1",
+    "MAX_DAILY_NFLX": "1",
+    "PAYOUTS_ENABLED": "false"
+  },
   // keep variables added in the dashboard (secrets such as ADMIN_KEY are always kept)
   "keep_vars": true,
   "observability": { "enabled": true }
