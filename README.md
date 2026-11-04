@@ -35,25 +35,33 @@ Opens the site with the API and a local D1 database on http://localhost:8787.
 
 ## NFLX stock-token payouts (Robinhood Chain)
 
-Each claim queues a payout to the user's address, computed from how much $NUT they hold, for how long,
-and how many days they watched:
+**No free $NUT.** Nobody gets a starter bag or $NUT for claiming: people buy $NUT themselves, and the
+server reads each wallet's **real on-chain balance** on Robinhood Chain. Its value in dollars sets the tier:
+
+| Tier | $NUT held (USD value) | Multiplier |
+|---|---|---|
+| 🥉 Bronze | $150 – $499 | 1x |
+| 🥈 Silver | $500 – $1,499 | 1.5x |
+| 🥇 Gold | $1,500 – $4,999 | 2x |
+| 💎 Diamond | $5,000 – $14,999 | 3x |
+| 🐋 Whale | $15,000+ | 4x |
+
+Under $150 = not eligible. On top of the tier:
 
 ```
-NFLX = NFLX_PER_CLAIM × hold × time × watch      (capped at MAX_PER_USER_NFLX per wallet per day)
-hold  = 1 + log10(balance / 1,000)   1x at 1,000 $NUT · 2x at 10,000 · max 3x
-time  = 1 + 5% per day held          max 2x from day 21 · back to day 1 if the balance drops under 1,000
-watch = 1 + 3% per day watched       max 1.9x
+NFLX/day = NFLX_PER_CLAIM × tier × time × watch       (max MAX_PER_USER_NFLX per wallet per day)
+time  = 1 + 5% per day held        max 2x · restarts if the value drops under $150
+watch = 1 + 2% per video watched   3 videos counted per day · max 2x
 ```
 
-Example: 10,000 $NUT held for 11 days, 10 days watched, base 0.001 → 0.001 × 2 × 1.5 × 1.3 = 0.0039 NFLX.
+Example: $1,500 of $NUT (Gold), held 11 days, 10 videos watched, base 0.001
+→ 0.001 × 2 × 1.5 × 1.2 = **0.0036 NFLX** that day.
 
-**Which $NUT counts:** until your token exists, the site's $NUT points. Once you launch $NUT on Robinhood Chain,
-add `NUT_TOKEN_ADDRESS`: the server then reads each wallet's real on-chain balance at every claim (only
-Ethereum-compatible wallets can hold it, so Solana sign-ins stop qualifying).
+To claim, a wallet must watch an episode that day, be at least Bronze, and claim once. The payout is queued
+and sent by the nightly cron (00:10 UTC). Tiers are in `functions/_lib/rewards.js`.
 
- Once a day
-(cron `10 0 * * *`, 00:10 UTC) the Worker sends every pending payout from a treasury wallet as an ERC-20
-transfer on Robinhood Chain. Only Ethereum-compatible addresses (Robinhood Wallet, MetaMask) receive them.
+**$NUT price:** set `NUT_PRICE_USD` to fix it, or leave it empty and the server reads it from DexScreener
+(most liquid pair, cached 10 minutes). Until `NUT_TOKEN_ADDRESS` is set, the panel says "$NUT isn't live yet".
 
 **Nothing is sent until `PAYOUTS_ENABLED` is `true`.** Set it up in this order:
 
@@ -72,7 +80,9 @@ transfer on Robinhood Chain. Only Ethereum-compatible addresses (Robinhood Walle
    | `EXPLORER_URL` | Text | explorer base URL, for transaction links |
    | `NFLX_PER_CLAIM` | Text | base amount, e.g. `0.001` (before the hold × time × watch bonuses) |
    | `MAX_PER_USER_NFLX` | Text | most one wallet can get per day, e.g. `0.01` |
-   | `NUT_TOKEN_ADDRESS` | Text | *(later)* your $NUT token on Robinhood Chain, to count real holdings |
+   | `NUT_TOKEN_ADDRESS` | Text | your $NUT token on Robinhood Chain (rewards start once it's set) |
+   | `NUT_PRICE_USD` | Text | *(optional)* fixed $NUT price; empty = live price from DexScreener |
+   | `NUT_BUY_URL` | Text | *(optional)* link behind the "Buy $NUT" button |
    | `MAX_DAILY_NFLX` | Text | hard cap per UTC day, e.g. `0.1` |
    | `PAYOUTS_ENABLED` | Text | `false` first, `true` when you're ready |
 
@@ -92,8 +102,8 @@ earlier transfers are checked on chain (sent → confirmed / failed), failed one
   `/api/verify` checks the signature on the server (Ed25519 / EIP-191), deletes the nonce so it can't be
   replayed, and returns a 30-day session.
 - One account per wallet: profiles, streak, calendar, $NUT and history follow the wallet on any device.
-- The server owns the rules: `/api/watch`, `/api/starter` (one welcome bag) and `/api/claim`
-  (needs today's episode + 1,000 $NUT, once a day, streak bonus up to 2x). "Today" is the server's UTC day.
+- The server owns the rules: `/api/watch` (counts up to 3 videos a day) and `/api/claim` (needs today's episode
+  and at least $150 of real $NUT in the wallet, once a day). "Today" is the server's UTC day. There is no free $NUT.
 - On phones, the wallet buttons open the site inside the Phantom / MetaMask in-app browser.
 - The demo wallet only appears when there is no backend (local testing, claude.ai preview).
 
@@ -116,9 +126,11 @@ earlier transfers are checked on chain (sent → confirmed / failed), failed one
 - `wrangler.jsonc`: Worker name, assets folder and D1 binding
 - `functions/_lib/evm.js`: vendored Ethereum signature check (@noble/curves + @noble/hashes, MIT)
 - `functions/_lib/payouts.js`: daily NFLX payouts (ethers v6)
+- `functions/_lib/rewards.js`: tiers, $NUT price and balance, reward formula
 
 ## Notes
 
-- `$NUT` is a points system, not a token. Only the optional NFLX payouts are on-chain.
+- $NUT is bought on-chain by users; the site never gives any away. NFLX payouts are sent on-chain.
+- Holdings are checked when someone claims (once a day): selling between two claims and buying back isn't detected.
 - "Watched" means the player ran; it isn't proof someone looked at the screen.
 - Nutflix is a parody. No explicit content, just innuendo.

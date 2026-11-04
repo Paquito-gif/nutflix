@@ -260,6 +260,10 @@
   .ac-empty{text-align:center;padding:10px 0}
   .nflx-line{margin-top:6px;font-weight:800;color:#ffd34d;font-size:15px}
   .nflx-line span{display:block;font-weight:600;font-size:11px;color:var(--muted)}
+  .tiers{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+  .tiers th{text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid #ffffff14}
+  .tiers td{padding:8px;border-bottom:1px solid #ffffff0d}
+  .tiers tr.on td{background:#ffd34d14;color:#ffd34d;font-weight:700}
   .nfx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
   .nfx div{background:#0b0806;border:1px solid #ffffff12;border-radius:8px;padding:10px}
   .nfx b{display:block;font-family:"Bebas Neue";font-size:24px;line-height:1;color:#ffd34d}
@@ -316,8 +320,8 @@
   </div>
   <div class="lg-hero">
     <h1>Unlimited innuendo, zero nuts, and so much more</h1>
-    <p class="lg-price">Starting at 0 $NUT. Cancel your willpower anytime.</p>
-    <p class="lg-ready">Ready to HODL? Connect your wallet to start your No Nut November streak and earn $NUT.</p>
+    <p class="lg-price">Hold $150 of $NUT. Earn NFLX stock tokens daily. Cancel your willpower anytime.</p>
+    <p class="lg-ready">Ready to HODL? Connect your wallet and watch an episode a day. The more $NUT you hold, the longer you hold it, the more NFLX you get.</p>
     <div id="lgBack"></div>
     <div class="lg-cta">
       <button class="lg-big" id="lgOpen">Connect wallet <span aria-hidden="true">›</span></button>
@@ -1053,7 +1057,9 @@ async function syncProfiles(){
   if (r.ok) applyServer(r.data); else { syncedProfiles = ""; toast("⚠️ Couldn't save your profiles. Try again."); }
 }
 const API_ERRORS = {
-  watch_first: "Watch today's episode first 📺", hold_more: `Hold at least ${MIN_HOLD.toLocaleString("en-US")} $NUT to claim`,
+  watch_first: "Watch today's episode first 📺", hold_more: API ? "Hold at least $150 of $NUT in your wallet to claim" : `Hold at least ${MIN_HOLD.toLocaleString("en-US")} $NUT to claim`,
+  not_launched: "$NUT isn't live yet. Rewards start at launch 🚀", wrong_wallet: "NFLX rewards need a Robinhood Wallet or MetaMask address",
+  chain_unreachable: "Can't reach Robinhood Chain right now. Try again in a minute.", no_price: "$NUT price unavailable right now. Try again soon.",
   already_claimed_today: "Already claimed today. Come back tomorrow 🥜", already_claimed: "Already claimed",
   not_signed_in: "Your session expired. Sign in again.", network: "Network error. Check your connection.",
 };
@@ -1125,7 +1131,7 @@ async function markWatched(title){
     save();
   }
   renderRewards(); renderAccount();
-  if (first) setTimeout(()=>toast(st.wallet ? "✅ Daily episode done. Go claim your $NUT 🥜" : "✅ Daily episode done. Sign in with a wallet to earn"), 400);
+  if (first) setTimeout(()=>toast(st.wallet ? (API ? "✅ Episode counted. Open 🥜 Nut Rewards to claim your NFLX" : "✅ Daily episode done. Go claim your $NUT 🥜") : "✅ Daily episode done. Sign in with a wallet to earn"), 400);
 }
 const nflxFmt = v => String(Number(v).toFixed(6)).replace(/0+$/,"").replace(/\.$/,"");
 const payEnabled = () => !!(API && PAYINFO && PAYINFO.enabled);
@@ -1166,7 +1172,7 @@ async function claimReward(){
     const r = await api("POST", "claim");
     if (!r.ok) return toast(apiError(r.data));
     applyServer(r.data);
-    toast(`💰 +${fmt(r.data.reward)} $NUT${r.data.nflx ? ` + ${nflxFmt(r.data.nflx)} NFLX` : ""} · 🔥 ${st.streak}-day streak`);
+    toast(`✅ Claimed · +${nflxFmt(r.data.nflx || 0)} NFLX sent tonight · 🔥 ${st.streak}-day streak`);
   } else {
     const r = reward(); st.streak = nextStreak(); st.best = Math.max(st.best||0, st.streak);
     st.claimed = ld(); st.bal += r; st.earned += r; st.claims = (st.claims||0) + 1;
@@ -1176,7 +1182,93 @@ async function claimReward(){
 }
 
 /* ---------- rewards panel ---------- */
+const usd = n => "$" + Math.round(n || 0).toLocaleString("en-US");
+function renderRewardsLive(){
+  const r = REWARD || {}, w = st.wallet;
+  const watched = st.watched === ld(), claimed = st.claimed === ld();
+  const streakNow = currentStreak();
+  const vToday = st.videoDay === ld() ? (st.videoToday || 0) : 0;
+  $("#chip").textContent = w ? `🥜 ${r.balance != null ? fmt(r.balance) : "—"} $NUT · 🔥 ${streakNow}` : "🥜 Nut Rewards";
+  const today = ld(), year = today.slice(0,4);
+  const seen = new Set(st.watchLog || []);
+  const paid = new Set((st.history||[]).filter(h=>h.ty==="claim").map(h=>h.d).concat(st.claimed ? [st.claimed] : []));
+  const joined = w && w.linkedAt ? new Date(w.linkedAt).toISOString().slice(0,10) : today;
+  let held = 0;
+  const dots = [...Array(30)].map((_,i)=>{
+    const key = `${year}-11-${String(i+1).padStart(2,"0")}`;
+    let cls = "fut", mark = i+1;
+    if (seen.has(key)) { held++; cls = paid.has(key) ? "on" : "ok"; mark = paid.has(key) ? "🥜" : "✓"; }
+    else if (key < today && key >= joined) { cls = "miss"; mark = "✕"; }
+    else if (key < today) cls = "pre";
+    return `<span class="${cls} ${key===today?"today":""}" title="Nov ${i+1}">${mark}</span>`;
+  }).join("");
+  const tiers = r.tiers || [];
+  const tierRows = tiers.map((t,i)=>{
+    const nextMin = tiers[i+1] ? tiers[i+1].minUsd : null;
+    const on = r.tier && r.tier.key === t.key;
+    return `<tr class="${on ? "on" : ""}"><td>${t.icon} ${esc(t.name)}</td><td>${usd(t.minUsd)}${nextMin ? ` – ${usd(nextMin - 1)}` : "+"}</td><td><b>${t.mult}x</b></td><td>${on ? "← you" : ""}</td></tr>`;
+  }).join("");
+  let holdBlock;
+  if (!w) holdBlock = `<span style="color:var(--muted)">Sign in to see your $NUT</span>`;
+  else if (r.reason === "not_launched") holdBlock = `<b>$NUT isn't live yet</b><div class="small" style="margin:2px 0 0">It launches on Robinhood Chain. Rewards start the day it's live.</div>`;
+  else if (r.reason === "wrong_wallet") holdBlock = `<b>Use Robinhood Wallet or MetaMask</b><div class="small" style="margin:2px 0 0">$NUT and NFLX live on Robinhood Chain. Sign out and connect an Ethereum-compatible wallet.</div>`;
+  else if (r.reason === "chain_unreachable" || r.reason === "no_price") holdBlock = `<b>Can't read your balance right now</b><div class="small" style="margin:2px 0 0">${r.reason === "no_price" ? "$NUT price unavailable" : "Robinhood Chain unreachable"}. Try again in a minute.</div>`;
+  else holdBlock = `<div class="rw-big">${fmt(r.balance)} <span style="font-size:22px;color:var(--red)">$NUT</span></div>
+      <div class="small" style="margin:2px 0 0">≈ <b>${usd(r.usd)}</b> at $${Number(r.price).toPrecision(3)} · ${r.tier ? `${r.tier.icon} <b>${esc(r.tier.name)}</b> tier · held ${r.holdDays} day${r.holdDays===1?"":"s"}` : "not eligible yet"}</div>
+      ${r.next ? `<div class="small" style="margin:4px 0 0;color:#ffd34d">Buy ${usd(r.next.needUsd)} more to reach ${r.next.icon} ${esc(r.next.name)}</div>` : ""}`;
+  const f = r.factors;
+  const calc = r.eligible && f ? `
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Today's NFLX</div>
+      <div class="nflx-line" style="font-size:20px">${claimed ? "✓ " : ""}+ ${nflxFmt(r.nflx)} NFLX <span>${claimed ? "claimed, sent automatically tonight" : "claim it below, sent automatically tonight"} · stock token on Robinhood Chain</span></div>
+      <div class="nfx">
+        <div><b>${r.tier.icon} ${fx(f.tier)}</b><span>${esc(r.tier.name)} tier (${usd(r.usd)})</span></div>
+        <div><b>⏳ ${fx(f.time)}</b><span>held ${r.holdDays} day${r.holdDays===1?"":"s"} · +5%/day, max 2x</span></div>
+        <div><b>📺 ${fx(f.watch)}</b><span>${r.videos} video${r.videos===1?"":"s"} · +2% each, max 2x</span></div>
+      </div>
+      <div class="small" style="margin:8px 0 0">${nflxFmt(PAYINFO ? PAYINFO.perClaim : "0.001")} NFLX × tier × days held × videos${PAYINFO ? `, max ${nflxFmt(PAYINFO.maxPerUser)} NFLX a day` : ""}.</div>
+    </div>` : "";
+  const canClaim = w && watched && r.eligible && !claimed;
+  $("#rw").innerHTML = `
+    <div class="rw-head"><div class="m">${hodlArt(hodlPhase(Math.max(streakNow, 1)))}</div>
+      <div><h4 style="margin:0">Nut Rewards</h4><div class="small" style="margin:0">Hold $NUT. Watch daily. Earn NFLX stock tokens.</div></div></div>
+
+    <div class="rw-row">
+      <div><div class="rw-lbl">Wallet</div>${w ? `<b>${esc(short(w.address))}</b> <span class="small">${esc(w.chain)}</span>` : `<span style="color:var(--muted)">Not signed in</span>`}</div>
+      ${w ? `<button class="btn info sm" id="rwAcct">👤 My account</button>` : `<button class="btn play sm" id="rwSettings">Sign in with wallet</button>`}
+    </div>
+
+    <div class="rw-row">
+      <div style="min-width:0"><div class="rw-lbl">Your $NUT</div>${holdBlock}</div>
+      ${r.buyUrl ? `<a class="btn play sm" href="${esc(r.buyUrl)}" target="_blank" rel="noopener">Buy $NUT ↗</a>` : ""}
+    </div>
+
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Eligibility · hold at least ${usd(r.minUsd || 150)} of $NUT</div>
+      <table class="tiers"><thead><tr><th>Tier</th><th>$NUT held</th><th>Reward</th><th></th></tr></thead><tbody>${tierRows}</tbody></table>
+      <div class="small" style="margin:6px 0 0">Your tier multiplies with ⏳ days held (+5%/day, max 2x) and 📺 videos watched (+2% each, 3 a day, max 2x). Drop under ${usd(r.minUsd || 150)} and your hold time restarts.</div>
+    </div>
+
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Today's quest</div>
+      <div class="ck ${watched ? "ok" : ""}"><b>${watched ? "✓" : ""}</b>Watch an episode today <span class="small" style="margin:0 0 0 6px">${vToday}/3 videos counted</span></div>
+      <div class="ck ${r.eligible ? "ok" : ""}"><b>${r.eligible ? "✓" : ""}</b>Hold at least ${usd(r.minUsd || 150)} of $NUT</div>
+      <div class="ck ${claimed ? "ok" : ""}"><b>${claimed ? "✓" : ""}</b>Claim your daily NFLX</div>
+    </div>
+
+    <div class="rw-row" style="display:block">
+      <div class="rw-lbl">Streak · ${streakNow} day${streakNow===1?"":"s"} · ${held}/30 days in November</div>
+      <div class="dots">${dots}</div>
+    </div>
+    ${calc}
+    <div class="btns" style="margin-top:18px">
+      <button class="btn play" id="rwClaim" ${canClaim ? "" : "disabled"}>${claimed ? "Come back tomorrow" : "Claim NFLX"}</button>
+      <button class="btn info" id="rwClose">Close</button>
+    </div>
+    <div class="small">NFLX stock tokens are sent on Robinhood Chain to the wallet you signed in with. $NUT is never given away: buy it yourself. Nutflix is a parody, not affiliated with Netflix or Robinhood. Not financial advice.</div>`;
+}
 function renderRewards(){
+  if (API) return renderRewardsLive();
   const watched = st.watched === ld(), claimed = st.claimed === ld();
   const holds = API && REWARD ? REWARD.holding : st.bal >= MIN_HOLD;
   const shownStreak = currentStreak();
@@ -1282,7 +1374,7 @@ function renderAccount(){
     return `<span class="cal-d ${cls} ${key===today?"today":""}" title="${key}"><i>${i+1}</i><b>${mark}</b></span>`;
   })).join("");
   const label = h => h.ty === "watch" ? `📺 Watched <b>${esc(h.t||"an episode")}</b>`
-    : h.ty === "claim" ? `💰 Claimed <b>+${fmt(h.n)} $NUT</b>${h.x ? ` + <b>${nflxFmt(h.x)} NFLX</b>` : ""}${h.s ? ` · 🔥 ${h.s}-day streak` : ""}`
+    : h.ty === "claim" ? `💰 Claimed${h.n ? ` <b>+${fmt(h.n)} $NUT</b>` : ""}${h.x ? ` <b>${h.n ? "+ " : ""}${nflxFmt(h.x)} NFLX</b>` : ""}${h.s ? ` · 🔥 ${h.s}-day streak` : ""}`
     : h.ty === "starter" ? `🎁 Got <b>+${fmt(h.n)} $NUT</b>` : esc(h.ty);
   const when = h => h.at ? new Date(h.at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : h.d;
   const recent = hist.slice(-12).reverse();
@@ -1304,8 +1396,10 @@ function renderAccount(){
       <div><b>🏆 ${best}</b><span>Best streak</span></div>
       <div><b>📅 ${watched.size}</b><span>Days watched</span></div>
       <div><b>📺 ${episodes}</b><span>Episodes</span></div>
-      <div><b>🥜 ${fmt(st.bal)}</b><span>$NUT bag</span></div>
-      <div><b>💰 ${fmt(st.earned)}</b><span>Earned</span></div>
+      ${API ? `<div><b>🥜 ${REWARD && REWARD.balance != null ? fmt(REWARD.balance) : "—"}</b><span>$NUT in wallet${REWARD && REWARD.usd != null ? ` · ${usd(REWARD.usd)}` : ""}</span></div>
+      <div><b>${REWARD && REWARD.tier ? REWARD.tier.icon + " " + REWARD.tier.name : "—"}</b><span>Tier</span></div>`
+      : `<div><b>🥜 ${fmt(st.bal)}</b><span>$NUT bag</span></div>
+      <div><b>💰 ${fmt(st.earned)}</b><span>Earned</span></div>`}
     </div>
     <div class="rw-lbl" style="margin-top:20px">No Nut November ${year} · ${held}/30 days held</div>
     <div class="cal-h">${["M","T","W","T","F","S","S"].map(d=>`<span>${d}</span>`).join("")}</div>

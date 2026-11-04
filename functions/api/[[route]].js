@@ -9,11 +9,9 @@
 //   ADMIN_KEY  secret used by /admin.html to list every account
 
 import { recoverPersonalSign } from "../_lib/evm.js";
-import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema,
-  holdingBalance, rewardFactors, nflxAmount } from "../_lib/payouts.js";
+import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema } from "../_lib/payouts.js";
+import { factors as rewardFactors, nflxFor, nutConfig, nutPriceUsd, nutBalance, tierFor, nextTier, publicTiers, MIN_USD, VIDEOS_PER_DAY } from "../_lib/rewards.js";
 
-const MIN_HOLD = 1000;            // $NUT you must hold to claim
-const STARTER_BAG = 1000;         // one-time welcome bag
 const MAX_PROFILES = 4;
 const NONCE_TTL_MS = 10 * 60e3;   // sign-in message validity
 const SESSION_TTL_MS = 30 * 864e5;
@@ -89,6 +87,7 @@ async function ensureSchema(db) {
 
 const blankState = () => ({
   bal: 0, earned: 0, watched: null, claimed: null, streak: 0, best: 0, holdSince: null,
+  videos: 0, videoDay: null, videoToday: 0,
   claims: 0, starter: false, watchLog: [], history: [], profiles: [],
 });
 const readState = row => Object.assign(blankState(), JSON.parse(row.state || "{}"));
@@ -100,18 +99,25 @@ function account(row, state) {
   return { address: row.address, chain: row.chain, createdAt: row.created_at, state, today: utcDay(), serverTime: Date.now() };
 }
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
-/** How today's NFLX reward is computed for this wallet (balance, days held, days watched → bonuses). */
-async function rewardPreview(env, row, state, today) {
-  let hold;
-  try { hold = await holdingBalance(env, { address: row.address, chain: row.chain, points: state.bal }); }
-  catch { hold = { balance: 0, source: "onchain", error: "chain_unreachable" }; }
-  const holding = hold.balance >= 1000;
-  const since = holding ? (state.holdSince || today) : null;
+/** Today's NFLX reward for this wallet: real $NUT held → $ value → tier, × days held × videos watched. */
+async function rewardPreview(env, db, row, state, today, deps = env.__TEST_CHAIN /* tests only */) {
+  const c = nutConfig(env);
+  const base = { launched: c.launched, buyUrl: c.buyUrl, minUsd: MIN_USD, videos: state.videos || 0, tiers: publicTiers() };
+  if (!c.launched) return { ...base, eligible: false, reason: "not_launched" };
+  if (row.chain !== "Ethereum") return { ...base, eligible: false, reason: "wrong_wallet", balance: 0, usd: 0 };
+  let balance, price;
+  try { [balance, price] = await Promise.all([nutBalance(env, row.address, deps), nutPriceUsd(env, db).then(p => p.price)]); }
+  catch { return { ...base, eligible: false, reason: "chain_unreachable" }; }
+  if (!price) return { ...base, eligible: false, reason: "no_price", balance };
+  const usd = balance * price;
+  const tier = tierFor(usd), next = nextTier(usd);
+  const since = tier ? (state.holdSince || today) : null;
   const holdDays = since ? daysBetween(since, today) + 1 : 0;
-  const watchDays = (state.watchLog || []).length;
-  const factors = rewardFactors({ balance: hold.balance, holdDays, watchDays });
-  return { balance: hold.balance, source: hold.source, error: hold.error, holding, holdSince: since, holdDays, watchDays,
-    factors, nflx: row.chain === "Ethereum" && holding ? nflxAmount(env, factors) : null };
+  const f = rewardFactors({ usd, holdDays, videos: state.videos || 0 });
+  return { ...base, eligible: !!tier, reason: tier ? null : "hold_more", balance, price, usd, holdSince: since, holdDays,
+    tier: tier && { key: tier.key, name: tier.name, icon: tier.icon, mult: tier.mult },
+    next: next && { name: next.name, icon: next.icon, minUsd: next.minUsd, needUsd: Math.max(next.minUsd - usd, 0) },
+    factors: f, nflx: tier ? nflxFor(env, f) : null };
 }
 const pushHistory = (state, entry) => { state.history = [...state.history, entry].slice(-MAX_HISTORY); };
 
@@ -141,7 +147,7 @@ export async function onRequest({ request, env, params }) {
   const route = [].concat(params.route || []).join("/");
   const method = request.method;
   const adminKey = typeof env.ADMIN_KEY === "string" ? env.ADMIN_KEY.trim() : "";
-  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, payouts: publicPayoutInfo(env), today: utcDay(), serverTime: Date.now() });
+  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, payouts: publicPayoutInfo(env), nut: { launched: nutConfig(env).launched, buyUrl: nutConfig(env).buyUrl, token: nutConfig(env).launched ? nutConfig(env).token : null, minUsd: MIN_USD, tiers: publicTiers(), videosPerDay: VIDEOS_PER_DAY }, today: utcDay(), serverTime: Date.now() });
   if (!env.DB) return fail(503, "database_not_configured");
   const db = env.DB;
 
@@ -233,7 +239,7 @@ export async function onRequest({ request, env, params }) {
 
     if (route === "me" && method === "GET") {
       await db.prepare("UPDATE users SET last_seen = ? WHERE address = ?").bind(Date.now(), row.address).run();
-      return json({ ...account(row, state), payouts: await payoutsFor(db, row.address), reward: await rewardPreview(env, row, state, today) });
+      return json({ ...account(row, state), payouts: await payoutsFor(db, row.address), reward: await rewardPreview(env, db, row, state, today) });
     }
 
     if (route === "logout" && method === "POST") {
@@ -248,35 +254,30 @@ export async function onRequest({ request, env, params }) {
         state.watched = today;
         state.watchLog = [...state.watchLog.filter(d => d !== today), today].slice(-366);
       }
+      if (state.videoDay !== today) { state.videoDay = today; state.videoToday = 0; }
+      if (state.videoToday < VIDEOS_PER_DAY) { state.videoToday++; state.videos = (state.videos || 0) + 1; }
       pushHistory(state, { d: today, at: Date.now(), ty: "watch", t });
       await writeState(db, row.address, state);
-      return json({ ...account(row, state), reward: await rewardPreview(env, row, state, today) });
+      return json({ ...account(row, state), reward: await rewardPreview(env, db, row, state, today) });
     }
 
-    if (route === "starter" && method === "POST") {
-      if (state.starter) return fail(409, "already_claimed");
-      state.starter = true; state.bal += STARTER_BAG;
-      pushHistory(state, { d: today, at: Date.now(), ty: "starter", n: STARTER_BAG });
-      await writeState(db, row.address, state);
-      return json({ ...account(row, state), reward: await rewardPreview(env, row, state, today) });
-    }
+    if (route === "starter" && method === "POST") return fail(410, "no_free_supply");   // $NUT must be bought
 
     if (route === "claim" && method === "POST") {
       if (state.claimed === today) return fail(409, "already_claimed_today");
       if (state.watched !== today) return fail(409, "watch_first");
-      const preview = await rewardPreview(env, row, state, today);
-      if (preview.error) return fail(503, "chain_unreachable");
-      if (!preview.holding) { state.holdSince = null; await writeState(db, row.address, state); return fail(409, "hold_more"); }
+      const preview = await rewardPreview(env, db, row, state, today);
+      if (preview.reason === "chain_unreachable" || preview.reason === "no_price") return fail(503, preview.reason);
+      if (preview.reason === "not_launched") return fail(409, "not_launched");
+      if (preview.reason === "wrong_wallet") return fail(409, "wrong_wallet");
+      if (!preview.eligible) { state.holdSince = null; await writeState(db, row.address, state); return fail(409, "hold_more"); }
       state.holdSince = preview.holdSince;
       const streak = state.claimed === yesterday ? state.streak + 1 : 1;
-      const mult = Math.min(1 + (streak - 1) * 0.1, 2);
-      const reward = Math.round(state.bal * 0.01 * mult);
-      Object.assign(state, { streak, best: Math.max(state.best, streak), claimed: today, claims: state.claims + 1,
-        bal: state.bal + reward, earned: state.earned + reward });
+      Object.assign(state, { streak, best: Math.max(state.best, streak), claimed: today, claims: state.claims + 1 });
       const nflx = await queuePayout(db, env, { address: row.address, chain: row.chain, day: today, factors: preview.factors });
-      pushHistory(state, { d: today, at: Date.now(), ty: "claim", n: reward, s: streak, ...(nflx ? { x: nflx } : {}) });
+      pushHistory(state, { d: today, at: Date.now(), ty: "claim", s: streak, x: nflx, tier: preview.tier.key, usd: Math.round(preview.usd) });
       await writeState(db, row.address, state);
-      return json({ reward, nflx, ...account(row, state), payouts: await payoutsFor(db, row.address), preview });
+      return json({ nflx, ...account(row, state), payouts: await payoutsFor(db, row.address), preview });
     }
 
     if (route === "profiles" && method === "PUT") {
@@ -290,7 +291,7 @@ export async function onRequest({ request, env, params }) {
       }
       state.profiles = clean;
       await writeState(db, row.address, state);
-      return json({ ...account(row, state), reward: await rewardPreview(env, row, state, today) });
+      return json({ ...account(row, state), reward: await rewardPreview(env, db, row, state, today) });
     }
 
     return fail(404, "not_found");
