@@ -3,6 +3,7 @@
 // /api/* that isn't a file reaches this script and goes to the API handler
 // (the same one Pages Functions would use from functions/api/[[route]].js).
 import { onRequest } from "../functions/api/[[route]].js";
+import { runPayouts } from "../functions/_lib/payouts.js";
 
 export default {
   async fetch(request, env) {
@@ -12,5 +13,11 @@ export default {
       return onRequest({ request, env, params: { route } });
     }
     return env.ASSETS.fetch(request);
+  },
+  // daily cron (wrangler.jsonc → triggers): send the NFLX payouts queued by yesterday's claims
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runPayouts(env)
+      .then(r => console.log("nutflix payouts", JSON.stringify(r)))
+      .catch(e => console.error("nutflix payouts failed, nothing marked as sent:", e && (e.shortMessage || e.message))));
   },
 };

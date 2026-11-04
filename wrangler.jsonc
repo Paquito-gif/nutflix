@@ -17,6 +17,8 @@
       "database_id": "330bdd95-4253-4c0e-aa59-2f6bc039e878"
     }
   ],
+  // once a day at 00:10 UTC: send the NFLX payouts queued by the previous day's claims
+  "triggers": { "crons": ["10 0 * * *"] },
   // keep variables added in the dashboard (secrets such as ADMIN_KEY are always kept)
   "keep_vars": true,
   "observability": { "enabled": true }

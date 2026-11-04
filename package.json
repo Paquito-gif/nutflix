@@ -1,0 +1,9 @@
+{
+  "name": "nutflix",
+  "private": true,
+  "type": "module",
+  "description": "No Nut November streaming parody, Cloudflare Worker + D1",
+  "dependencies": {
+    "ethers": "6.13.4"
+  }
+}

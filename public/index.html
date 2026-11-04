@@ -258,6 +258,9 @@
   .ac-hist div{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:6px;background:#0b0806;font-size:13px}
   .ac-hist time{color:var(--muted);white-space:nowrap;font-size:12px}
   .ac-empty{text-align:center;padding:10px 0}
+  .nflx-line{margin-top:6px;font-weight:800;color:#ffd34d;font-size:15px}
+  .nflx-line span{display:block;font-weight:600;font-size:11px;color:var(--muted)}
+  .ac-hist a{color:#7fd0ff;font-size:12px;white-space:nowrap}
   .ac-empty .ac-art{margin:0 auto 10px;width:110px}
   @media (max-width:560px){.ac-stats{grid-template-columns:repeat(2,1fr)}.ac-art{width:64px;flex-basis:64px}}
   .avatar.add{border:3px dashed #555;color:#777;font-weight:300}
@@ -977,7 +980,7 @@ function loading(done, text, still){
    - "local":  this browser only, one saved account per wallet
    ===================================================================== */
 const MIN_HOLD = 1000, STARTER_BAG = 1000;
-let API = false, SKEW = 0, SESSION = null, PLAYING = "";
+let API = false, SKEW = 0, SESSION = null, PLAYING = "", PAYINFO = null, PAYOUTS = [];
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const localDay = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 // with the backend, "today" is the server's UTC day so streaks can't be gamed with the clock
@@ -1034,6 +1037,7 @@ function applyServer(acc){
   const wallet = { chain:acc.chain, address:acc.address, linkedAt:new Date(acc.createdAt).toISOString(), verified:true, demo:false };
   st = Object.assign(blank(), acc.state, { wallet });
   syncedProfiles = JSON.stringify(st.profiles || []);
+  if (Array.isArray(acc.payouts)) PAYOUTS = acc.payouts;
   accounts[acctKey()] = st; lsSet(AKEY, accounts); lsSet(CKEY, acctKey());
 }
 async function syncProfiles(){
@@ -1061,7 +1065,7 @@ function renderAll(){ renderRewards(); renderSettings(); renderLogin(); renderPr
     if (!res.ok) return;
     const j = await res.json();
     if (!j.ok || !j.configured) return;
-    API = true; SKEW = j.serverTime - Date.now();
+    API = true; SKEW = j.serverTime - Date.now(); PAYINFO = j.payouts || null;
   } catch(e) { return; }
   SESSION = lsGet(SKEY, null);
   if (SESSION) {
@@ -1118,6 +1122,11 @@ async function markWatched(title){
   renderRewards(); renderAccount();
   if (first) setTimeout(()=>toast(st.wallet ? "✅ Daily episode done. Go claim your $NUT 🥜" : "✅ Daily episode done. Sign in with a wallet to earn"), 400);
 }
+const nflxFmt = v => String(Number(v).toFixed(6)).replace(/0+$/,"").replace(/\.$/,"");
+const payEnabled = () => !!(API && PAYINFO && PAYINFO.enabled);
+const nflxToday = () => (Number(PAYINFO.perClaim) * mult()).toFixed(6);
+const txUrl = h => PAYINFO && PAYINFO.explorer && h ? `${PAYINFO.explorer}/tx/${h}` : null;
+
 async function getStarter(){
   if (API && SESSION) {
     const r = await api("POST", "starter");
@@ -1133,7 +1142,8 @@ async function claimReward(){
   if (API && SESSION) {
     const r = await api("POST", "claim");
     if (!r.ok) return toast(apiError(r.data));
-    applyServer(r.data); toast(`💰 +${fmt(r.data.reward)} $NUT claimed · 🔥 ${st.streak}-day streak`);
+    applyServer(r.data);
+    toast(`💰 +${fmt(r.data.reward)} $NUT${r.data.nflx ? ` + ${nflxFmt(r.data.nflx)} NFLX` : ""} · 🔥 ${st.streak}-day streak`);
   } else {
     const r = reward(); st.streak = nextStreak(); st.best = Math.max(st.best||0, st.streak);
     st.claimed = ld(); st.bal += r; st.earned += r; st.claims = (st.claims||0) + 1;
@@ -1195,7 +1205,10 @@ function renderRewards(){
       <div><div class="rw-lbl">Bonus</div><div class="small" style="margin:0">+0.1x per day of streak, up to 2x</div></div>
       <div style="text-align:right"><div class="rw-lbl">Today's reward</div>
         <div class="rw-big" style="font-size:32px;color:#46d369">${claimed ? "Claimed" : "+" + fmt(reward())}</div>
-        <div class="small" style="margin:0">1% of bag × ${mult().toFixed(1)}x streak</div></div>
+        <div class="small" style="margin:0">1% of bag × ${mult().toFixed(1)}x streak</div>
+        ${payEnabled() ? (st.wallet && st.wallet.chain === "Ethereum"
+          ? `<div class="nflx-line">+ ${nflxFmt(nflxToday())} NFLX <span>stock token, sent automatically within 24h</span></div>`
+          : `<div class="small" style="margin:4px 0 0">NFLX stock rewards go to Robinhood Wallet / MetaMask addresses.</div>`) : ""}</div>
     </div>
 
     <div class="btns" style="margin-top:18px">
@@ -1246,7 +1259,7 @@ function renderAccount(){
     return `<span class="cal-d ${cls} ${key===today?"today":""}" title="${key}"><i>${i+1}</i><b>${mark}</b></span>`;
   })).join("");
   const label = h => h.ty === "watch" ? `📺 Watched <b>${esc(h.t||"an episode")}</b>`
-    : h.ty === "claim" ? `💰 Claimed <b>+${fmt(h.n)} $NUT</b>${h.s ? ` · 🔥 ${h.s}-day streak` : ""}`
+    : h.ty === "claim" ? `💰 Claimed <b>+${fmt(h.n)} $NUT</b>${h.x ? ` + <b>${nflxFmt(h.x)} NFLX</b>` : ""}${h.s ? ` · 🔥 ${h.s}-day streak` : ""}`
     : h.ty === "starter" ? `🎁 Got <b>+${fmt(h.n)} $NUT</b>` : esc(h.ty);
   const when = h => h.at ? new Date(h.at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : h.d;
   const recent = hist.slice(-12).reverse();
@@ -1275,6 +1288,7 @@ function renderAccount(){
     <div class="cal-h">${["M","T","W","T","F","S","S"].map(d=>`<span>${d}</span>`).join("")}</div>
     <div class="cal">${cells}</div>
     <div class="cal-key"><span><i class="k nut"></i>Watched + claimed</span><span><i class="k ok"></i>Watched</span><span><i class="k miss"></i>Missed</span></div>
+    ${payEnabled() ? nflxSection(w) : ""}
     <div class="rw-lbl" style="margin-top:20px">Recent activity</div>
     <div class="ac-hist">${recent.length ? recent.map(h=>`<div><span>${label(h)}</span><time>${esc(when(h))}</time></div>`).join("") : `<div class="small">Nothing yet. Press Play on any show to start your streak.</div>`}</div>
     <div class="btns" style="margin-top:20px">
@@ -1282,6 +1296,23 @@ function renderAccount(){
       <button class="btn info" id="acOut" style="margin-left:auto;background:#5a1a12">Sign out</button>
     </div>
     <div class="small">${API ? "Your account is saved on Nutflix and follows your wallet on any device." : "Saved in this browser. On the live site your account follows your wallet on any device."}</div>`;
+}
+function nflxSection(w){
+  if (w.chain !== "Ethereum") return `<div class="rw-lbl" style="margin-top:20px">NFLX stock rewards</div>
+    <div class="small" style="margin:6px 0 0">Daily NFLX stock-token rewards are sent on Robinhood Chain. Sign in with Robinhood Wallet or MetaMask to receive them.</div>`;
+  const got = PAYOUTS.filter(p=>p.status==="confirmed"||p.status==="sent").reduce((a,p)=>a+Number(p.amount),0);
+  const wait = PAYOUTS.filter(p=>p.status==="pending").reduce((a,p)=>a+Number(p.amount),0);
+  const badge = { pending:"⏳ pending", sent:"📤 sent", confirmed:"✅ received", failed:"⚠️ retrying soon" };
+  return `<div class="rw-lbl" style="margin-top:20px">NFLX stock rewards · Robinhood Chain</div>
+    <div class="ac-stats" style="grid-template-columns:repeat(2,1fr);margin-top:6px">
+      <div><b>📈 ${nflxFmt(got.toFixed(6)) || 0}</b><span>NFLX received</span></div>
+      <div><b>⏳ ${nflxFmt(wait.toFixed(6)) || 0}</b><span>Waiting for tonight's payout</span></div>
+    </div>
+    <div class="ac-hist" style="max-height:160px">${PAYOUTS.length ? PAYOUTS.slice(0,10).map(p=>{
+      const u = txUrl(p.tx_hash);
+      return `<div><span>${badge[p.status]||esc(p.status)} · <b>${nflxFmt(p.amount)} NFLX</b> for ${esc(p.day)}</span>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener">view tx ↗</a>` : `<time></time>`}</div>`;
+    }).join("") : `<div class="small">Claim your daily $NUT to earn NFLX.</div>`}</div>
+    ${PAYINFO.token ? `<div class="small" style="margin:6px 0 0">Token contract: <code>${esc(short(PAYINFO.token))}</code>. Only trust this address, never "claim" links sent by DM.</div>` : ""}`;
 }
 function openAccount(){ renderAccount(); $("#acct").classList.add("open"); }
 $("#acct").onclick = async e => {
@@ -1485,7 +1516,7 @@ function renderLogin(){
   const d = detect();
   const nd = isMobile ? `<small class="nd">opens the app</small>` : `<small class="nd">not detected</small>`;
   $("#lgSol").innerHTML = "◎ Continue with Phantom" + (d.sol ? "" : nd);
-  $("#lgEvm").innerHTML = "🦊 Continue with MetaMask" + (d.evm ? "" : nd);
+  $("#lgEvm").innerHTML = "🦊 MetaMask / Robinhood Wallet" + (d.evm ? "" : nd);
   $("#lgDemo").style.display = API ? "none" : "";
 }
 function enter(asGuest){

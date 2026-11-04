@@ -9,6 +9,7 @@
 //   ADMIN_KEY  secret used by /admin.html to list every account
 
 import { recoverPersonalSign } from "../_lib/evm.js";
+import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema } from "../_lib/payouts.js";
 
 const MIN_HOLD = 1000;            // $NUT you must hold to claim
 const STARTER_BAG = 1000;         // one-time welcome bag
@@ -125,7 +126,7 @@ export async function onRequest({ request, env, params }) {
   const route = [].concat(params.route || []).join("/");
   const method = request.method;
   const adminKey = typeof env.ADMIN_KEY === "string" ? env.ADMIN_KEY.trim() : "";
-  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, today: utcDay(), serverTime: Date.now() });
+  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, payouts: publicPayoutInfo(env), today: utcDay(), serverTime: Date.now() });
   if (!env.DB) return fail(503, "database_not_configured");
   const db = env.DB;
 
@@ -187,6 +188,27 @@ export async function onRequest({ request, env, params }) {
       });
     }
 
+    if (route.startsWith("admin/payouts") || route === "admin/treasury") {
+      if (!adminKey) return fail(503, "admin_key_not_set");
+      if (!timingSafeEqual((request.headers.get("x-admin-key") || "").trim(), adminKey)) return fail(401, "unauthorized");
+      await ensurePayoutSchema(db);
+      if (route === "admin/payouts" && method === "GET") {
+        const { results } = await db.prepare("SELECT * FROM payouts ORDER BY id DESC LIMIT 500").all();
+        return json({ payouts: results, info: publicPayoutInfo(env) });
+      }
+      if (route === "admin/payouts/run" && method === "POST") return json(await runPayouts(env));
+      if (route === "admin/payouts/retry" && method === "POST") {
+        const { id } = await body(request);
+        await db.prepare("UPDATE payouts SET status = 'pending', error = NULL WHERE id = ? AND status = 'failed'").bind(Number(id)).run();
+        return json({ ok: true });
+      }
+      if (route === "admin/treasury" && method === "GET") {
+        try { return json(await treasuryInfo(env)); }
+        catch (e) { return json({ ready: false, reachable: false, enabled: publicPayoutInfo(env).enabled, missing: [], error: String(e.shortMessage || e.message).slice(0, 200) }); }
+      }
+      return fail(404, "not_found");
+    }
+
     // everything below needs a session
     const me = await sessionUser(db, request);
     if (!me) return fail(401, "not_signed_in");
@@ -196,7 +218,7 @@ export async function onRequest({ request, env, params }) {
 
     if (route === "me" && method === "GET") {
       await db.prepare("UPDATE users SET last_seen = ? WHERE address = ?").bind(Date.now(), row.address).run();
-      return json(account(row, state));
+      return json({ ...account(row, state), payouts: await payoutsFor(db, row.address) });
     }
 
     if (route === "logout" && method === "POST") {
@@ -233,9 +255,10 @@ export async function onRequest({ request, env, params }) {
       const reward = Math.round(state.bal * 0.01 * mult);
       Object.assign(state, { streak, best: Math.max(state.best, streak), claimed: today, claims: state.claims + 1,
         bal: state.bal + reward, earned: state.earned + reward });
-      pushHistory(state, { d: today, at: Date.now(), ty: "claim", n: reward, s: streak });
+      const nflx = await queuePayout(db, env, { address: row.address, chain: row.chain, day: today, streakMult: mult });
+      pushHistory(state, { d: today, at: Date.now(), ty: "claim", n: reward, s: streak, ...(nflx ? { x: nflx } : {}) });
       await writeState(db, row.address, state);
-      return json({ reward, ...account(row, state) });
+      return json({ reward, nflx, ...account(row, state), payouts: await payoutsFor(db, row.address) });
     }
 
     if (route === "profiles" && method === "PUT") {
