@@ -1,0 +1,23 @@
+// Cloudflare Workers config for Nutflix.
+// Static site from public/, API from src/worker.js (→ functions/api/[[route]].js),
+// accounts stored in the D1 database "nutflix".
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nutflix",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nutflix",
+      "database_id": "330bdd95-4253-4c0e-aa59-2f6bc039e878"
+    }
+  ],
+  // keep variables added in the dashboard (secrets such as ADMIN_KEY are always kept)
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}

@@ -3,35 +3,35 @@
 No Nut November, the streaming parody. Starring HODL, the peanut with diamond hands.
 Static site: one `index.html` plus the artwork in `public/`. No build step.
 
+## Deploy on Cloudflare (Workers)
+
+The repo is set up for **Cloudflare Workers with static assets** (`wrangler.jsonc`):
+`public/` is the site, `src/worker.js` serves `/api/*`, and the D1 database is bound as `DB`.
+
+1. Cloudflare dashboard → **Workers & Pages → Create → Import a repository** → pick this repo.
+   Build command: *(empty)*. Deploy command: `npx wrangler deploy` (the default).
+2. Make sure the Worker is named **`nutflix`** (or change `"name"` in `wrangler.jsonc` to match).
+3. The D1 database ID is already in `wrangler.jsonc`. Tables are created automatically on the first request.
+4. Worker → **Settings → Variables and secrets → Add** → type **Secret**, name **`ADMIN_KEY`**,
+   value: a long random password. Secrets survive every deploy.
+5. Check `https://<your-worker>.workers.dev/api/health` → `{"ok":true,"configured":true,…}`.
+6. Open `/admin.html` and enter your `ADMIN_KEY` to see every account.
+
+Every push to `main` redeploys automatically.
+
+<details><summary>Using Cloudflare Pages instead</summary>
+
+Create a **Pages** project, output directory `public`, no build command. `functions/` serves `/api/*`.
+Bind the D1 database as `DB` and add the `ADMIN_KEY` secret in the Pages project settings.
+</details>
+
 ## Run locally
 
 ```bash
-cd public && python3 -m http.server 8080
+npx wrangler dev
 ```
 
-Then open http://localhost:8080. Wallet extensions (Phantom, MetaMask) only inject on `http://localhost` or `https://` pages, not on `file://`.
-
-## Deploy on Cloudflare Pages
-
-1. Push this repo to GitHub.
-2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick the repo.
-3. Build settings: Framework preset **None**, Build command **(empty)**, Build output directory **`public`**.
-   The `functions/` folder is picked up automatically and serves `/api/*`.
-4. Deploy.
-
-## Turn on accounts (one-time, ~5 minutes)
-
-Without this the site still works, but each visitor's progress stays in their own browser.
-
-1. **Create the database**: Workers & Pages → **D1 SQL Database** → Create → name it `nutflix`.
-   Tables are created automatically on the first request.
-2. **Bind it**: your Pages project → **Settings → Bindings → Add → D1 database**.
-   Variable name **`DB`**, database `nutflix`. Do it for Production (and Preview if you use it).
-3. **Admin key**: Settings → **Variables and secrets → Add** → type **Secret**, name **`ADMIN_KEY`**,
-   value: a long random password.
-4. **Redeploy** (Deployments → ⋯ → Retry deployment) so the bindings apply.
-5. Check `https://<your-site>/api/health` → `{"ok":true,"configured":true,…}`.
-6. Open `https://<your-site>/admin.html` and enter your `ADMIN_KEY` to see every account.
+Opens the site with the API and a local D1 database on http://localhost:8787.
 
 ## How accounts work
 
@@ -46,7 +46,7 @@ Without this the site still works, but each visitor's progress stays in their ow
 
 ## What works where
 
-| Feature | Cloudflare + D1 | Cloudflare without D1 | claude.ai preview |
+| Feature | Cloudflare + D1 | Static files only | claude.ai preview |
 |---|---|---|---|
 | Landing, profiles, shows, tempters, guest mode | ✅ | ✅ | ✅ |
 | Wallet sign-in | ✅ verified by the server | ✅ signed in the browser | depends on the extension |
@@ -59,6 +59,8 @@ Without this the site still works, but each visitor's progress stays in their ow
 - `public/index.html`: the whole site
 - `public/admin.html`: admin dashboard (needs `ADMIN_KEY`)
 - `functions/api/[[route]].js`: the API
+- `src/worker.js`: Workers entry point (routes `/api/*` to the API)
+- `wrangler.jsonc`: Worker name, assets folder and D1 binding
 - `functions/_lib/evm.js`: vendored Ethereum signature check (@noble/curves + @noble/hashes, MIT)
 
 ## Notes
