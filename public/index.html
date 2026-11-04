@@ -170,6 +170,18 @@
   .box .meta{color:#46d369;font-weight:800;font-size:14px;margin-bottom:12px}
   .box p{color:#ddd2c6;line-height:1.55}
   .box .close{margin-top:18px}
+  .player{position:fixed;inset:0;z-index:65;background:#000;display:none;flex-direction:column;align-items:center;justify-content:center}
+  .player.open{display:flex}
+  .player video{width:100%;max-height:100%;max-width:min(100vw,177.78vh);background:#000;outline:none}
+  .pl-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;padding:14px clamp(12px,3vw,32px);background:linear-gradient(#000c,#0000);z-index:2;transition:opacity .3s}
+  .player.idle .pl-top{opacity:0}
+  .pl-back{color:#fff;font-weight:800;font-size:16px;padding:8px 14px;border-radius:6px;background:#ffffff1f}
+  .pl-back:hover{background:#ffffff33}
+  .pl-t b{display:block;font-family:"Bebas Neue";font-size:24px;letter-spacing:.5px;line-height:1}
+  .pl-t span{font-size:13px;color:#cfc4b8}
+  .pl-hint{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:#000a;color:#fff;font-weight:700;font-size:13px;padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+  .pl-hint.on{opacity:1}
+  .card .new{position:absolute;top:8px;right:8px;background:var(--red);color:#fff;font-size:10px;font-weight:800;letter-spacing:1.5px;padding:3px 7px;border-radius:3px;z-index:1}
   .loader{display:none;position:fixed;inset:0;z-index:60;background:#000;place-items:center;text-align:center;padding:16px}
   .loader.open{display:grid}
   .loader .bob{width:160px;margin:0 auto;animation:bob .5s ease-in-out infinite alternate}
@@ -437,6 +449,15 @@
 <div class="modal" id="acct"><div class="box rbox ac-box"><div class="in" id="acctBody"></div></div></div>
 <div class="modal" id="pmodal"><div class="box rbox"><div class="in" id="pe"></div></div></div>
 <div class="toast" id="toast"></div>
+
+<div class="player" id="player" role="dialog" aria-label="Video player">
+  <div class="pl-top">
+    <button class="pl-back" id="plBack">← Back</button>
+    <div class="pl-t"><b id="plShow"></b><span id="plEp"></span></div>
+  </div>
+  <video id="plVideo" playsinline controls preload="auto" controlslist="nodownload noplaybackrate" disablepictureinpicture></video>
+  <div class="pl-hint" id="plHint"></div>
+</div>
 
 <div class="loader" id="loader"><div>
   <div class="bob" id="loadMascot"></div>
@@ -754,6 +775,10 @@ const BANNERS = {
 };
 shows.forEach(sh => { if (BANNERS[sh.t]) sh.banner = BANNERS[sh.t]; });
 shows[0].m = hodl(hodlPhase(DAY)); shows[0].img = HODL_IMG[hodlPhase(DAY)];
+/* shows that have a real video episode (see playEpisode) */
+const EPISODES = {
+  "No Nut November": { src: "ep-nnn-1.mp4", poster: "ep-nnn-1.jpg", label: "Episode 1 · Hold Strong" },
+};
 const rows = [
   {h:"Top 10 in the U.S. Tonight", top:true, idx:[0,1,2,3,4,5,6,7,8,9]},
   {h:"Because You Watched Alone at 2 AM", idx:[9,11,12,13,14,2,5]},
@@ -880,7 +905,7 @@ $("#rows").innerHTML = rows.map(r=>`
     <div class="track">${r.idx.map((i,k)=>{const s=shows[i];return `
       <button class="card" data-info="${i}" aria-label="${esc(s.t)}">
         ${poster(s)}
-        ${r.top?`<span class="rk">${k+1}</span>`:""}
+        ${r.top?`<span class="rk">${k+1}</span>`:""}${EPISODES[s.t] ? `<span class="new">NEW EP</span>` : ""}
         <span class="lbl"><span class="n">N SERIES</span><span class="t">${esc(s.t)}</span></span>
       </button>`}).join("")}</div>
   </div>`).join("");
@@ -917,6 +942,7 @@ document.addEventListener("click", e=>{
     $("#modal").classList.remove("open");
     if (GUEST) { openSignin("Guests can't play episodes. Sign in with your wallet to watch 🍿"); return; }
     PLAYING = play.dataset.play;
+    if (playEpisode(PLAYING)) return;
     loading(null, `Now playing "${play.dataset.play}"…`, true);
   }
 });
@@ -1002,6 +1028,57 @@ $("#tYes").onclick = () => {
   $("#loader").classList.add("open");
   setTimeout(()=>{ $("#loader").classList.remove("open"); $("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY)); scheduleTempt(90000); }, 2800);
 };
+
+/* ---------- real episodes ----------
+   Shows with a video play it full screen. The episode counts only when the video was actually watched
+   (about 85% of its length played, so jumping to the end doesn't count). Others keep the short fake player. */
+let PL = { watched: 0, last: 0, done: false, idleT: null };
+function playEpisode(title){
+  const ep = EPISODES[title]; if (!ep) return false;
+  hideTempt(); clearTimeout(temptT);
+  const v = $("#plVideo");
+  PL = { watched: 0, last: 0, done: false, idleT: null };
+  $("#plShow").textContent = title; $("#plEp").textContent = ep.label;
+  v.poster = ep.poster; v.src = ep.src; v.currentTime = 0;
+  $("#player").classList.add("open"); document.body.style.overflow = "hidden";
+  v.play().catch(() => {});        // starts with sound: the visitor just clicked Play
+  plIdle();
+  return true;
+}
+function closePlayer(counted){
+  const v = $("#plVideo"); v.pause();
+  $("#player").classList.remove("open"); document.body.style.overflow = "";
+  v.removeAttribute("src"); v.load();
+  if (!counted) { toast("⏸️ Finish the episode to count it for today"); scheduleTempt(60000); }
+}
+function plIdle(){
+  $("#player").classList.remove("idle"); clearTimeout(PL.idleT);
+  PL.idleT = setTimeout(() => { if (!$("#plVideo").paused) $("#player").classList.add("idle"); }, 2500);
+}
+function plHint(t){ const h = $("#plHint"); h.textContent = t; h.classList.add("on"); clearTimeout(h._t); h._t = setTimeout(() => h.classList.remove("on"), 2200); }
+{
+  const v = $("#plVideo");
+  v.addEventListener("timeupdate", () => {
+    const d = v.currentTime - PL.last;
+    if (d > 0 && d < 1.5) PL.watched += d;        // only time actually played, not seeks
+    PL.last = v.currentTime;
+  });
+  v.addEventListener("seeking", () => { if (v.currentTime > PL.last + 1.5) plHint("Skipping ahead doesn't count 😏"); PL.last = v.currentTime; });
+  v.addEventListener("ended", () => {
+    const enough = v.duration && PL.watched >= v.duration * 0.85;
+    if (!enough) { plHint("Watch it all the way through to count it"); return; }
+    if (PL.done) return; PL.done = true;
+    closePlayer(true);
+    markWatched(PLAYING);
+    $("#lt").textContent = "Episode over. HODL held… did you?";
+    $("#bar").classList.remove("on");
+    $("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY));
+    $("#still").classList.add("open"); $("#loader").classList.add("open");
+  });
+  $("#player").addEventListener("mousemove", plIdle);
+  $("#player").addEventListener("touchstart", plIdle, { passive: true });
+  $("#plBack").onclick = () => closePlayer(false);
+}
 
 function loading(done, text, still){
   $("#lt").textContent = text;
@@ -1920,7 +1997,7 @@ renderRewards();
 
 $("#nnn").textContent = DAY ? `No Nut November · day ${DAY}/30 · stay strong` : "No Nut November · off-season, treat yourself";
 if (DAY) $("#herop").textContent += ` Day ${DAY}: only ${30-DAY} days to go. Hang in there.`;
-document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ $("#lb").classList.remove("open"); closeSignin(); $("#acct").classList.remove("open"); $("#pmodal").classList.remove("open"); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ if ($("#player").classList.contains("open")) { closePlayer(false); return; } $("#lb").classList.remove("open"); closeSignin(); $("#acct").classList.remove("open"); $("#pmodal").classList.remove("open"); $("#modal").classList.remove("open"); $("#rewards").classList.remove("open"); $("#settings").classList.remove("open"); } });
 </script>
 </body>
 </html>
