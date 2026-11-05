@@ -31,7 +31,7 @@
     // ⬇️ LAUNCH: paste the $Nutflix contract address (CA) here. Everything else follows from it:
     //    balances and tiers are read on-chain, the price comes from DexScreener, the Buy button and
     //    the CA shown on the site are generated. Leave it empty until the token exists.
-    "NUT_TOKEN_ADDRESS": "",
+    "NUT_TOKEN_ADDRESS": "0x4cd810071d396ed662268ec2990dc510f33a3f62",
     "RPC_URL": "https://rpc.mainnet.chain.robinhood.com",
     "EXPLORER_URL": "https://robinhoodchain.blockscout.com",
     "NFLX_TOKEN_ADDRESS": "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8",
