@@ -33,6 +33,16 @@ npx wrangler dev
 
 Opens the site with the API and a local D1 database on http://localhost:8787.
 
+## Launch day: paste the CA, that's it
+
+1. Open `wrangler.jsonc` and paste the $Nutflix contract address in `"NUT_TOKEN_ADDRESS": ""`.
+2. Commit & push (or send it to whoever maintains the repo). Cloudflare redeploys in ~1 minute.
+
+From then on, automatically: balances and tiers are read on Robinhood Chain, the price comes from DexScreener
+(as soon as a pair exists), the "Buy $Nutflix" button links to the CA on DexScreener, and the official CA is shown
+on the landing page and in Nut Rewards with a Copy button. Optional overrides: `NUT_BUY_URL` (your own buy link),
+`NUT_PRICE_USD` (fixed price). Don't also set `NUT_TOKEN_ADDRESS` in the dashboard: `wrangler.jsonc` wins on deploy.
+
 ## NFLX stock-token payouts (Robinhood Chain)
 
 **No free $Nutflix.** Nobody gets a starter bag or $Nutflix for claiming: people buy $Nutflix themselves, and the

@@ -58,7 +58,9 @@ export function nutConfig(env) {
     launched: ethers.isAddress(token) && okRpc(rpc),
     token, rpc, chainId: Number(env.CHAIN_ID || 4663),
     fixedPrice: Number.isFinite(fixed) && fixed > 0 ? fixed : null,
-    buyUrl: /^https:\/\//.test(env.NUT_BUY_URL || "") ? env.NUT_BUY_URL.trim() : null,
+    // buy link: NUT_BUY_URL if set, otherwise a DexScreener search for the CA (works on any chain/DEX)
+    buyUrl: /^https:\/\//.test(env.NUT_BUY_URL || "") ? env.NUT_BUY_URL.trim()
+      : ethers.isAddress(token) ? `https://dexscreener.com/search?q=${token}` : null,
   };
 }
 
