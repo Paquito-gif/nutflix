@@ -1,10 +1,10 @@
 // Who earns NFLX, and how much.
 //
-// Holdings are real $NUT bought on Robinhood Chain (no free supply). Their value in
+// Holdings are real $Nutflix bought on Robinhood Chain (no free supply). Their value in
 // dollars decides the tier; days held and videos watched stack on top:
 //
 //   NFLX/day = NFLX_PER_CLAIM × tier × time × watch   (capped at MAX_PER_USER_NFLX)
-//   tier  = by $ value of $NUT held (table below); under the first tier = not eligible
+//   tier  = by $ value of $Nutflix held (table below); under the first tier = not eligible
 //   time  = 1 + 5% per day held, max 2x; back to day 1 if the value drops under the first tier
 //   watch = 1 + 2% per video watched (max 3 counted per day), max 2x
 //
@@ -62,7 +62,7 @@ export function nutConfig(env) {
   };
 }
 
-/** $NUT price in USD: NUT_PRICE_USD if set, else DexScreener (most liquid pair), cached 10 minutes in D1. */
+/** $Nutflix price in USD: NUT_PRICE_USD if set, else DexScreener (most liquid pair), cached 10 minutes in D1. */
 export async function nutPriceUsd(env, db, fetcher = fetch) {
   const c = nutConfig(env);
   if (c.fixedPrice) return { price: c.fixedPrice, source: "fixed" };
@@ -87,7 +87,7 @@ export async function nutPriceUsd(env, db, fetcher = fetch) {
   }
 }
 
-/** Real on-chain $NUT balance of an Ethereum-compatible address. */
+/** Real on-chain $Nutflix balance of an Ethereum-compatible address. */
 export async function nutBalance(env, address, deps) {
   const c = nutConfig(env);
   const provider = deps?.provider || new ethers.JsonRpcProvider(c.rpc, c.chainId, { staticNetwork: true });

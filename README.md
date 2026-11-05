@@ -35,10 +35,10 @@ Opens the site with the API and a local D1 database on http://localhost:8787.
 
 ## NFLX stock-token payouts (Robinhood Chain)
 
-**No free $NUT.** Nobody gets a starter bag or $NUT for claiming: people buy $NUT themselves, and the
+**No free $Nutflix.** Nobody gets a starter bag or $Nutflix for claiming: people buy $Nutflix themselves, and the
 server reads each wallet's **real on-chain balance** on Robinhood Chain. Its value in dollars sets the tier:
 
-| Tier | $NUT held (USD value) | Multiplier |
+| Tier | $Nutflix held (USD value) | Multiplier |
 |---|---|---|
 | 🥉 Bronze | $150 – $499 | 1x |
 | 🥈 Silver | $500 – $1,499 | 1.5x |
@@ -54,14 +54,14 @@ time  = 1 + 5% per day held        max 2x · restarts if the value drops under $
 watch = 1 + 2% per video watched   3 videos counted per day · max 2x
 ```
 
-Example: $1,500 of $NUT (Gold), held 11 days, 10 videos watched, base 0.001
+Example: $1,500 of $Nutflix (Gold), held 11 days, 10 videos watched, base 0.001
 → 0.001 × 2 × 1.5 × 1.2 = **0.0036 NFLX** that day.
 
 To claim, a wallet must watch an episode that day, be at least Bronze, and claim once. The payout is queued
 and sent by the nightly cron (00:10 UTC). Tiers are in `functions/_lib/rewards.js`.
 
-**$NUT price:** set `NUT_PRICE_USD` to fix it, or leave it empty and the server reads it from DexScreener
-(most liquid pair, cached 10 minutes). Until `NUT_TOKEN_ADDRESS` is set, the panel says "$NUT isn't live yet".
+**$Nutflix price:** set `NUT_PRICE_USD` to fix it, or leave it empty and the server reads it from DexScreener
+(most liquid pair, cached 10 minutes). Until `NUT_TOKEN_ADDRESS` is set, the panel says "$Nutflix isn't live yet".
 
 **Nothing is sent until `PAYOUTS_ENABLED` is `true`.** Set it up in this order:
 
@@ -80,9 +80,9 @@ and sent by the nightly cron (00:10 UTC). Tiers are in `functions/_lib/rewards.j
    | `EXPLORER_URL` | Text | explorer base URL, for transaction links |
    | `NFLX_PER_CLAIM` | Text | base amount, e.g. `0.001` (before the hold × time × watch bonuses) |
    | `MAX_PER_USER_NFLX` | Text | most one wallet can get per day, e.g. `0.01` |
-   | `NUT_TOKEN_ADDRESS` | Text | your $NUT token on Robinhood Chain (rewards start once it's set) |
-   | `NUT_PRICE_USD` | Text | *(optional)* fixed $NUT price; empty = live price from DexScreener |
-   | `NUT_BUY_URL` | Text | *(optional)* link behind the "Buy $NUT" button |
+   | `NUT_TOKEN_ADDRESS` | Text | your $Nutflix token on Robinhood Chain (rewards start once it's set) |
+   | `NUT_PRICE_USD` | Text | *(optional)* fixed $Nutflix price; empty = live price from DexScreener |
+   | `NUT_BUY_URL` | Text | *(optional)* link behind the "Buy $Nutflix" button |
    | `MAX_DAILY_NFLX` | Text | hard cap per UTC day, e.g. `0.1` |
    | `PAYOUTS_ENABLED` | Text | `false` first, `true` when you're ready |
 
@@ -101,9 +101,9 @@ earlier transfers are checked on chain (sent → confirmed / failed), failed one
 - Signing in with Phantom (Solana) or MetaMask (Ethereum) signs a one-time message from `/api/nonce`.
   `/api/verify` checks the signature on the server (Ed25519 / EIP-191), deletes the nonce so it can't be
   replayed, and returns a 30-day session.
-- One account per wallet: profiles, streak, calendar, $NUT and history follow the wallet on any device.
+- One account per wallet: profiles, streak, calendar, $Nutflix and history follow the wallet on any device.
 - The server owns the rules: `/api/watch` (counts up to 3 videos a day) and `/api/claim` (needs today's episode
-  and at least $150 of real $NUT in the wallet, once a day). "Today" is the server's UTC day. There is no free $NUT.
+  and at least $150 of real $Nutflix in the wallet, once a day). "Today" is the server's UTC day. There is no free $Nutflix.
 - On phones, the wallet buttons open the site inside the Phantom / MetaMask in-app browser.
 - The demo wallet only appears when there is no backend (local testing, claude.ai preview).
 
@@ -126,11 +126,11 @@ earlier transfers are checked on chain (sent → confirmed / failed), failed one
 - `wrangler.jsonc`: Worker name, assets folder and D1 binding
 - `functions/_lib/evm.js`: vendored Ethereum signature check (@noble/curves + @noble/hashes, MIT)
 - `functions/_lib/payouts.js`: daily NFLX payouts (ethers v6)
-- `functions/_lib/rewards.js`: tiers, $NUT price and balance, reward formula
+- `functions/_lib/rewards.js`: tiers, $Nutflix price and balance, reward formula
 
 ## Notes
 
-- $NUT is bought on-chain by users; the site never gives any away. NFLX payouts are sent on-chain.
+- $Nutflix is bought on-chain by users; the site never gives any away. NFLX payouts are sent on-chain.
 - Holdings are checked when someone claims (once a day): selling between two claims and buying back isn't detected.
 - "Watched" means the player ran; it isn't proof someone looked at the screen.
 - Nutflix is a parody. No explicit content, just innuendo.

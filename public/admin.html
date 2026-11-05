@@ -68,7 +68,7 @@
     <div class="stats" id="stats"></div>
     <div class="tools"><input id="q" placeholder="Search an address…"><span class="muted" id="count"></span></div>
     <div class="table"><table>
-      <thead><tr><th>Wallet</th><th>Chain</th><th>Joined</th><th>Last seen</th><th>Last watched</th><th>Days</th><th>Streak</th><th>Best</th><th>Claims</th><th>$NUT</th><th>Earned</th><th>Profiles</th></tr></thead>
+      <thead><tr><th>Wallet</th><th>Chain</th><th>Joined</th><th>Last seen</th><th>Last watched</th><th>Days</th><th>Streak</th><th>Best</th><th>Claims</th><th>$Nutflix</th><th>Earned</th><th>Profiles</th></tr></thead>
       <tbody id="rows"></tbody>
     </table></div>
     <h2 class="sec">NFLX payouts · Robinhood Chain</h2>
@@ -159,7 +159,7 @@ function render(){
     [all.filter(u => u.chain === "Solana").length + " / " + all.filter(u => u.chain === "Ethereum").length, "Solana / Ethereum"],
     [all.filter(u => u.watched === today).length, "Watched today"],
     [Math.max(0, ...all.map(u => u.streak)), "Longest current streak"],
-    [fmt(all.reduce((a, u) => a + u.earned, 0)), "$NUT paid out"],
+    [fmt(all.reduce((a, u) => a + u.earned, 0)), "$Nutflix paid out"],
   ].map(([b, s]) => `<div><b>${esc(b)}</b><span>${esc(s)}</span></div>`).join("");
   $("#count").textContent = `${users.length} shown`;
   $("#rows").innerHTML = users.map(u => `<tr>

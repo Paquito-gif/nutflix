@@ -99,7 +99,7 @@ function account(row, state) {
   return { address: row.address, chain: row.chain, createdAt: row.created_at, state, today: utcDay(), serverTime: Date.now() };
 }
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
-/** Today's NFLX reward for this wallet: real $NUT held → $ value → tier, × days held × videos watched. */
+/** Today's NFLX reward for this wallet: real $Nutflix held → $ value → tier, × days held × videos watched. */
 async function rewardPreview(env, db, row, state, today, deps = env.__TEST_CHAIN /* tests only */) {
   const c = nutConfig(env);
   const base = { launched: c.launched, buyUrl: c.buyUrl, minUsd: MIN_USD, videos: state.videos || 0, tiers: publicTiers() };
@@ -286,7 +286,7 @@ export async function onRequest({ request, env, params }) {
       return json({ ...account(row, state), reward: await rewardPreview(env, db, row, state, today) });
     }
 
-    if (route === "starter" && method === "POST") return fail(410, "no_free_supply");   // $NUT must be bought
+    if (route === "starter" && method === "POST") return fail(410, "no_free_supply");   // $Nutflix must be bought
 
     if (route === "claim" && method === "POST") {
       if (state.claimed === today) return fail(409, "already_claimed_today");
