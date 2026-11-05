@@ -142,8 +142,28 @@
       radial-gradient(ellipse at 75% 40%, #b8743a44, transparent 55%),
       radial-gradient(ellipse at 20% 80%, #d8261c33, transparent 50%),
       linear-gradient(180deg,#1a100a,#0b0806);position:relative;overflow:hidden}
-  .hero.has-banner{background-image:linear-gradient(90deg,#0b0806 0%,#0b0806e6 28%,#0b080666 55%,#0b080600 75%),linear-gradient(0deg,#0b0806 0%,#0b080600 35%),linear-gradient(180deg,#000a 0%,#0000 25%),var(--bn);background-size:cover;background-position:center}
-  @media (max-width:760px){.hero.has-banner{background-image:linear-gradient(0deg,#0b0806 0%,#0b0806ee 38%,#0b080600 70%),linear-gradient(180deg,#000a 0%,#0000 20%),var(--bn);background-size:auto 75%;background-position:50% 64px;background-repeat:no-repeat;background-color:#0b0806}}
+  /* animated hero: banner layer (slow zoom) + lightning + embers, gradients on top, text above all */
+  .hero.has-banner{background:#0b0806;isolation:isolate}
+  .hero.has-banner .hb-img{position:absolute;inset:0;z-index:-3;background:var(--bn) 60% 8%/cover no-repeat;transform-origin:62% 4%;animation:kb 26s ease-in-out infinite alternate}
+  .hero.has-banner .hb-fade{position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background:linear-gradient(90deg,#0b0806 0%,#0b0806e6 28%,#0b080666 55%,#0b080600 75%),linear-gradient(0deg,#0b0806 0%,#0b080600 35%),linear-gradient(180deg,#000a 0%,#0000 25%)}
+  .hb-flash{position:absolute;inset:0;z-index:-2;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 62% 14%,#fff4ee 0%,#ff8a6acc 18%,#ff3a2a44 40%,#0000 70%);mix-blend-mode:screen}
+  .hb-flash.on{animation:flash .9s ease-out}
+  .hb-embers{position:absolute;inset:0;z-index:-2;pointer-events:none;overflow:hidden}
+  .hb-embers i{position:absolute;bottom:-10px;width:4px;height:4px;border-radius:50%;background:#ffb070;box-shadow:0 0 8px 2px #ff5a2a;opacity:0;animation:ember linear infinite}
+  .hero.has-banner .hero-c>*{opacity:0;transform:translateY(18px);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards}
+  .hero.has-banner .hero-c>*:nth-child(2){animation-delay:.1s}.hero.has-banner .hero-c>*:nth-child(3){animation-delay:.2s}
+  .hero.has-banner .hero-c>*:nth-child(4){animation-delay:.35s}.hero.has-banner .hero-c>*:nth-child(5){animation-delay:.5s}
+  .hero.has-banner .btn.play{animation:rise .8s .5s cubic-bezier(.2,.8,.2,1) forwards, glow 2.8s 1.6s ease-in-out infinite}
+  @keyframes kb{from{transform:scale(1.0) translate(0,0)}to{transform:scale(1.09) translate(-1.5%,0)}}
+  @keyframes flash{0%{opacity:0}6%{opacity:1}14%{opacity:.1}22%{opacity:.9}40%{opacity:.2}100%{opacity:0}}
+  @keyframes ember{0%{transform:translate(0,0);opacity:0}10%{opacity:.9}100%{transform:translate(var(--dx),-85vh);opacity:0}}
+  @keyframes rise{to{opacity:1;transform:none}}
+  @keyframes glow{0%,100%{box-shadow:0 0 0 0 #fff0}50%{box-shadow:0 0 0 6px #ffffff22,0 0 24px #ffffff44}}
+  @media (max-width:760px){.hero.has-banner .hb-img{background-size:auto 75%;background-position:50% 64px;transform-origin:50% 30%}
+    .hero.has-banner .hb-fade{background:linear-gradient(0deg,#0b0806 0%,#0b0806ee 38%,#0b080600 70%),linear-gradient(180deg,#000a 0%,#0000 20%)}}
+  @media (prefers-reduced-motion:reduce){.hero.has-banner .hb-img,.hb-embers i,.hero.has-banner .btn.play{animation:none}
+    .hero.has-banner .hero-c>*{animation:none;opacity:1;transform:none}.hb-flash{display:none}}
   .hero.has-banner .star{display:none}
   .hero .star{position:absolute;right:4%;bottom:6%;width:clamp(220px,34vw,460px);filter:drop-shadow(0 30px 40px #000)}
   .hero .star .shake{animation:shake 2.6s ease-in-out infinite;transform-origin:50% 100%}
@@ -834,6 +854,13 @@ $("#heroMascot").innerHTML = hodlArt(hodlPhase(DAY));
 if (shows[0].banner) {
   const h = document.querySelector(".hero");
   h.classList.add("has-banner");
+  h.insertAdjacentHTML("afterbegin", `<div class="hb-img"></div><div class="hb-flash"></div><div class="hb-embers">${
+    [...Array(18)].map((_,i)=>`<i style="left:${(i*53)%100}%;--dx:${((i*37)%60)-30}px;animation-duration:${6+(i*7)%7}s;animation-delay:${(i*11)%9}s;transform:scale(${.6+(i%4)*.25})"></i>`).join("")}</div><div class="hb-fade"></div>`);
+  // lightning: a double flash every 5–11 s, only while the page is visible
+  const fl = h.querySelector(".hb-flash");
+  const strike = () => { if (!document.hidden) { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }
+    setTimeout(strike, 5000 + Math.random()*6000); };
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setTimeout(strike, 2200);
   h.style.setProperty("--bn", `url("${shows[0].banner}")`);
 }
 $("#loadMascot").innerHTML = hodlArt(hodlPhase(DAY));
