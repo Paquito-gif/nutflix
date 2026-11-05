@@ -38,7 +38,7 @@
     "NFLX_PER_CLAIM": "0.01",
     "MAX_PER_USER_NFLX": "0.1",
     "MAX_DAILY_NFLX": "1",
-    "PAYOUTS_ENABLED": "false"
+    "PAYOUTS_ENABLED": "true"
   },
   // keep variables added in the dashboard (secrets such as ADMIN_KEY are always kept)
   "keep_vars": true,
