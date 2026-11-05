@@ -6,6 +6,11 @@
   "name": "nutflix",
   "main": "src/worker.js",
   "compatibility_date": "2025-06-01",
+  // serve the site on nutflix.site (and www); Cloudflare creates the DNS records and certificate on deploy
+  "routes": [
+    { "pattern": "nutflix.site", "custom_domain": true },
+    { "pattern": "www.nutflix.site", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"

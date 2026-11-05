@@ -14,8 +14,8 @@ The repo is set up for **Cloudflare Workers with static assets** (`wrangler.json
 3. The D1 database ID is already in `wrangler.jsonc`. Tables are created automatically on the first request.
 4. Worker → **Settings → Variables and secrets → Add** → type **Secret**, name **`ADMIN_KEY`**,
    value: a long random password. Secrets survive every deploy.
-5. Check `https://<your-worker>.workers.dev/api/health` → `{"ok":true,"configured":true,…}`.
-6. Open `/admin.html` and enter your `ADMIN_KEY` to see every account.
+5. Check `https://nutflix.site/api/health` → `{"ok":true,"configured":true,…}`.
+6. Open `https://nutflix.site/admin.html` and enter your `ADMIN_KEY` to see every account.
 
 Every push to `main` redeploys automatically.
 
