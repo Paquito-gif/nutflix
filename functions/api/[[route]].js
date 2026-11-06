@@ -55,6 +55,14 @@ async function ensureSchema(db) {
     db.prepare(`CREATE TABLE IF NOT EXISTS sessions (
       token TEXT PRIMARY KEY, address TEXT NOT NULL, expires_at INTEGER NOT NULL)`),
   ]);
+  // Solana only: remove anything left from Ethereum / Robinhood Chain sign-ins (accounts, sessions, nonces, payouts)
+  await ensurePayoutSchema(db);
+  await db.batch([
+    db.prepare("DELETE FROM sessions WHERE address IN (SELECT address FROM users WHERE chain <> 'Solana') OR address LIKE '0x%'"),
+    db.prepare("DELETE FROM payouts WHERE address LIKE '0x%'"),
+    db.prepare("DELETE FROM nonces WHERE chain <> 'Solana'"),
+    db.prepare("DELETE FROM users WHERE chain <> 'Solana'"),
+  ]);
   schemaReady = true;
 }
 
@@ -218,7 +226,7 @@ export async function onRequest({ request, env, params }) {
     // public leaderboard: best current watch streaks (short addresses and profile names only)
     if (route === "leaderboard" && method === "GET") {
       const today = utcDay();
-      const { results } = await db.prepare("SELECT address, chain, state FROM users WHERE chain = 'Solana'").all();
+      const { results } = await db.prepare("SELECT address, chain, state FROM users").all();
       const rows = results.map(r => {
         const s = readState(r), w = watchStreaks(s.watchLog, today), p = (s.profiles || [])[0];
         return { who: shortAddr(r.address), chain: r.chain, name: p ? p.name : null, avatar: p ? p.avatar : null, bg: p ? p.bg : null,
