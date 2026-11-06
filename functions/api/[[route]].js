@@ -43,6 +43,25 @@ async function signatureIsValid(chain, address, message, signature) {
 
 /* ---------- storage ---------- */
 let schemaReady = false;
+// One-off data fixes: each runs a single time (recorded in kv), so the same wallets can sign up again afterwards.
+const PRE_LAUNCH_RESET = [   // pre-launch test accounts removed before launch, at the owner's request
+  "7wxXQ6K2xipnLiNpC6DX4b3WtTprwPSxwBwoJSqZacPM",
+  "ALBeDLqn2npVsiCSNF4fTCDRMSgQ6iDKv4gNLq1p5E3g",
+  "ENQfz8muDkkyW9tNp7ziSpg7gMb1DjcoHV1xG6nUA1Ea",
+];
+async function runOnce(db, key, addresses) {
+  await db.prepare("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)").run();
+  if (await db.prepare("SELECT 1 FROM kv WHERE k = ?").bind(key).first()) return;
+  const marks = addresses.map(() => "?").join(",");
+  await db.batch([
+    db.prepare(`DELETE FROM sessions WHERE address IN (${marks})`).bind(...addresses),
+    db.prepare(`DELETE FROM nonces WHERE address IN (${marks})`).bind(...addresses),
+    db.prepare(`DELETE FROM payouts WHERE address IN (${marks})`).bind(...addresses),
+    db.prepare(`DELETE FROM users WHERE address IN (${marks})`).bind(...addresses),
+    db.prepare("INSERT INTO kv (k, v, at) VALUES (?, 'done', ?)").bind(key, Date.now()),
+  ]);
+}
+
 async function ensureSchema(db) {
   if (schemaReady) return;
   await db.batch([
@@ -63,6 +82,7 @@ async function ensureSchema(db) {
     db.prepare("DELETE FROM nonces WHERE chain <> 'Solana'"),
     db.prepare("DELETE FROM users WHERE chain <> 'Solana'"),
   ]);
+  await runOnce(db, "reset-pre-launch-accounts-2026-11-06", PRE_LAUNCH_RESET);
   schemaReady = true;
 }
 
