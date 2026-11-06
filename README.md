@@ -75,9 +75,11 @@ retried from the admin.
 2. Fund it with **NFLX** (the mint above) and a little **SOL** for fees and new token accounts (~0.002 SOL each).
 3. Add the secret `SOLANA_TREASURY_KEY` (the base58 private key, or a JSON array from solana-keygen).
 4. Open `/admin.html`: the treasury card must show the wallet, its NFLX and SOL balances.
-5. Optional: set `SOLANA_RPC_URL` to a private RPC (Helius, Triton, QuickNode…). The public endpoint is rate-limited.
+5. **Required**: add the secret `SOLANA_RPC_URL` with a private RPC (Helius, Triton, QuickNode…), e.g.
+   `https://mainnet.helius-rpc.com/?api-key=…`. The public endpoint blocks Cloudflare, so balances and payouts
+   fail without it. Keep it a secret: the URL contains your API key.
 
-Settings in `wrangler.jsonc`: `NFLX_MINT`, `SOLANA_RPC_URL`, `EXPLORER_URL` (Solscan), `NFLX_PER_CLAIM`,
+Settings in `wrangler.jsonc`: `NFLX_MINT`, `EXPLORER_URL` (Solscan), `NFLX_PER_CLAIM`,
 `MAX_PER_USER_NFLX`, `MAX_DAILY_NFLX`, `PRIORITY_FEE` (micro-lamports per compute unit), `PAYOUTS_ENABLED`.
 
 Safety built in: one payout per wallet per day, a daily cap, it stops when the treasury runs low on NFLX or SOL,

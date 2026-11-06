@@ -24,7 +24,8 @@
   ],
   // once a day at 00:10 UTC: send the NFLX payouts queued by the previous day's claims (Solana)
   "triggers": { "crons": ["10 0 * * *"] },
-  // Everything runs on Solana (nothing secret here: SOLANA_TREASURY_KEY and ADMIN_KEY are dashboard secrets).
+  // Everything runs on Solana. Dashboard secrets (never in this file): ADMIN_KEY, SOLANA_TREASURY_KEY and
+  // SOLANA_RPC_URL (a private RPC with its API key, e.g. Helius; the public endpoint blocks Cloudflare).
   // NFLX rewards are the "Netflix - Backpack Securities" token (Token-2022, 6 decimals).
   // Payouts only go out when PAYOUTS_ENABLED is "true" AND the SOLANA_TREASURY_KEY secret is set.
   "vars": {
@@ -33,7 +34,6 @@
     //    (Jupiter) and the CA shown on the site are generated. Leave it empty until the token exists.
     "NUT_MINT": "",
     "NFLX_MINT": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
-    "SOLANA_RPC_URL": "https://api.mainnet-beta.solana.com",
     "EXPLORER_URL": "https://solscan.io",
     "NFLX_PER_CLAIM": "0.01",
     "MAX_PER_USER_NFLX": "0.1",
