@@ -3,7 +3,7 @@
 No Nut November, the streaming parody, on **Solana**. Starring HODL, the peanut with diamond hands.
 Watch an episode a day, hold $Nutflix, earn NFLX stock tokens every night.
 
-Live at **https://nutflix.site** · X: [@nutflixonrh](https://x.com/nutflixonrh)
+Live at **https://nutflix.site** · X: [@NutflixOnSol](https://x.com/NutflixOnSol)
 
 ## Deploy on Cloudflare (Workers)
 
