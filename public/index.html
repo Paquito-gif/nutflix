@@ -98,7 +98,6 @@
   .lg-btn:hover{filter:brightness(1.12)}
   .lg-btn .nd{font-size:11px;font-weight:600;opacity:.75;padding:2px 7px;border-radius:999px;background:#0002}
   .lg-btn.sol{background:linear-gradient(90deg,#8a5cf6,#ab9ff2);color:#fff}
-  .lg-btn.evm{background:#f6851b;color:#1a0f0a}
   .lg-btn.guest{background:#ffffff1f;color:var(--text);border:1px solid #ffffff2a}
   .lg-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px;margin:8px 0 16px}
   .lg-or::before,.lg-or::after{content:"";flex:1;height:1px;background:#ffffff22}
@@ -1250,8 +1249,8 @@ async function syncProfiles(){
 }
 const API_ERRORS = {
   watch_first: "Watch today's episode first 📺", hold_more: API ? "Hold at least $150 of $Nutflix in your wallet to claim" : `Hold at least ${MIN_HOLD.toLocaleString("en-US")} $Nutflix to claim`,
-  not_launched: "$Nutflix isn't live yet. Rewards start at launch 🚀", wrong_wallet: "NFLX rewards need a Robinhood Wallet or MetaMask address",
-  chain_unreachable: "Can't reach Robinhood Chain right now. Try again in a minute.", no_price: "$Nutflix price unavailable right now. Try again soon.",
+  not_launched: "$Nutflix isn't live yet. Rewards start at launch 🚀", wrong_wallet: "NFLX rewards need a Solana wallet (Phantom, Solflare, Backpack…)",
+  chain_unreachable: "Can't reach Solana right now. Try again in a minute.", no_price: "$Nutflix price unavailable right now. Try again soon.",
   already_claimed_today: "Already claimed today. Come back tomorrow 🥜", already_claimed: "Already claimed",
   not_signed_in: "Your session expired. Sign in again.", network: "Network error. Check your connection.",
 };
@@ -1343,7 +1342,7 @@ function nflxBreakdown(){
   const r = REWARD, f = r.factors, onchain = r.source === "onchain";
   const head = !r.holding
     ? `<div class="nflx-line" style="color:var(--muted)">Hold at least 1,000 $Nutflix${onchain ? " in your wallet" : ""} to earn NFLX</div>`
-    : `<div class="nflx-line">${claimedTodayNflx() ? "✓ Today's NFLX" : "Today's NFLX"}: + ${nflxFmt(r.nflx)} NFLX <span>stock token on Robinhood Chain, sent automatically within 24h</span></div>`;
+    : `<div class="nflx-line">${claimedTodayNflx() ? "✓ Today's NFLX" : "Today's NFLX"}: + ${nflxFmt(r.nflx)} NFLX <span>stock token on Solana, sent automatically within 24h</span></div>`;
   return `<div class="rw-row" style="display:block">
     <div class="rw-lbl">NFLX reward</div>
     ${head}
@@ -1387,7 +1386,7 @@ async function claimReward(){
 const usd = n => "$" + Math.round(n || 0).toLocaleString("en-US");
 /* ---------- the official $Nutflix CA, shown once NUT_TOKEN_ADDRESS is set ---------- */
 const nutCA = () => (NUTINFO && NUTINFO.launched && NUTINFO.token) || null;
-const caHtml = () => nutCA() ? `<div class="ca-box"><span class="ca-l">$Nutflix CA</span><code>${esc(nutCA())}</code><button class="ca-cp" data-ca="${esc(nutCA())}">Copy</button>${NUTINFO.buyUrl ? `<a class="ca-buy" href="${esc(NUTINFO.buyUrl)}" target="_blank" rel="noopener">Buy ↗</a>` : ""}</div>` : "";
+const caHtml = () => nutCA() ? `<div class="ca-box"><span class="ca-l">$Nutflix CA</span><code>${esc(nutCA())}</code><button class="ca-cp" data-ca="${esc(nutCA())}">Copy</button>${NUTINFO.chartUrl ? `<a class="ca-cp" href="${esc(NUTINFO.chartUrl)}" target="_blank" rel="noopener">Chart</a>` : ""}${NUTINFO.buyUrl ? `<a class="ca-buy" href="${esc(NUTINFO.buyUrl)}" target="_blank" rel="noopener">Buy ↗</a>` : ""}</div>` : "";
 function renderCA(){ const el = document.getElementById("caLand"); if (el) el.innerHTML = caHtml(); }
 document.addEventListener("click", async e => {
   const b = e.target.closest(".ca-cp"); if (!b) return;
@@ -1427,9 +1426,9 @@ function renderRewardsLive(){
   let holdBlock;
   if (!w) holdBlock = `<span style="color:var(--muted)">Sign in to see your $Nutflix</span>`;
   else if (!REWARD) holdBlock = `<span style="color:var(--muted)">Reading your wallet…</span>`;
-  else if (r.reason === "not_launched") holdBlock = `<b>$Nutflix isn't live yet</b><div class="small" style="margin:2px 0 0">It launches on Robinhood Chain. Rewards start the day it's live.</div>`;
-  else if (r.reason === "wrong_wallet") holdBlock = `<b>Use Robinhood Wallet or MetaMask</b><div class="small" style="margin:2px 0 0">$Nutflix and NFLX live on Robinhood Chain. Sign out and connect an Ethereum-compatible wallet.</div>`;
-  else if (r.reason === "chain_unreachable" || r.reason === "no_price") holdBlock = `<b>Can't read your balance right now</b><div class="small" style="margin:2px 0 0">${r.reason === "no_price" ? "$Nutflix price unavailable" : "Robinhood Chain unreachable"}. Try again in a minute.</div>`;
+  else if (r.reason === "not_launched") holdBlock = `<b>$Nutflix isn't live yet</b><div class="small" style="margin:2px 0 0">It launches on Solana. Rewards start the day it's live.</div>`;
+  else if (r.reason === "wrong_wallet") holdBlock = `<b>Use a Solana wallet</b><div class="small" style="margin:2px 0 0">$Nutflix and NFLX live on Solana. Sign out and connect Phantom, Solflare or Backpack.</div>`;
+  else if (r.reason === "chain_unreachable" || r.reason === "no_price") holdBlock = `<b>Can't read your balance right now</b><div class="small" style="margin:2px 0 0">${r.reason === "no_price" ? "$Nutflix price unavailable" : "Solana unreachable"}. Try again in a minute.</div>`;
   else holdBlock = `<div class="rw-big">${fmt(r.balance)} <span style="font-size:22px;color:var(--red)">$Nutflix</span></div>
       <div class="small" style="margin:2px 0 0">≈ <b>${usd(r.usd)}</b> at $${Number(r.price).toPrecision(3)} · ${r.tier ? `${r.tier.icon} <b>${esc(r.tier.name)}</b> tier · held ${r.holdDays} day${r.holdDays===1?"":"s"}` : "not eligible yet"}</div>
       ${r.next ? `<div class="small" style="margin:4px 0 0;color:#ffd34d">Buy ${usd(r.next.needUsd)} more to reach ${r.next.icon} ${esc(r.next.name)}</div>` : ""}`;
@@ -1437,7 +1436,7 @@ function renderRewardsLive(){
   const calc = r.eligible && f ? `
     <div class="rw-row" style="display:block">
       <div class="rw-lbl">Today's NFLX</div>
-      <div class="nflx-line" style="font-size:20px">${claimed ? "✓ " : ""}+ ${nflxFmt(r.nflx)} NFLX <span>${claimed ? "claimed, sent automatically tonight" : "claim it below, sent automatically tonight"} · stock token on Robinhood Chain</span></div>
+      <div class="nflx-line" style="font-size:20px">${claimed ? "✓ " : ""}+ ${nflxFmt(r.nflx)} NFLX <span>${claimed ? "claimed, sent automatically tonight" : "claim it below, sent automatically tonight"} · stock token on Solana</span></div>
       <div class="nfx">
         <div><b>${r.tier.icon} ${fx(f.tier)}</b><span>${esc(r.tier.name)} tier (${usd(r.usd)})</span></div>
         <div><b>⏳ ${fx(f.time)}</b><span>held ${r.holdDays} day${r.holdDays===1?"":"s"} · +5%/day, max 2x</span></div>
@@ -1484,7 +1483,7 @@ function renderRewardsLive(){
       <button class="btn play" id="rwClaim" ${canClaim ? "" : "disabled"}>${claimed ? "Come back tomorrow" : "Claim NFLX"}</button>
       <button class="btn info" id="rwClose">Close</button>
     </div>
-    <div class="small">NFLX stock tokens are sent on Robinhood Chain to the wallet you signed in with. $Nutflix is never given away: buy it yourself. Nutflix is a parody, not affiliated with Netflix or Robinhood. Not financial advice.</div>`;
+    <div class="small">NFLX stock tokens are sent on Solana to the wallet you signed in with. $Nutflix is never given away: buy it yourself. Nutflix is a parody, not affiliated with Netflix. Not financial advice.</div>`;
 }
 function renderRewards(){
   if (API) return renderRewardsLive();
@@ -1541,9 +1540,9 @@ function renderRewards(){
       <div style="text-align:right"><div class="rw-lbl">Today's reward</div>
         <div class="rw-big" style="font-size:32px;color:#46d369">${claimed ? "Claimed" : "+" + fmt(reward())}</div>
         <div class="small" style="margin:0">1% of bag × ${mult().toFixed(1)}x streak</div>
-        ${payEnabled() && !(st.wallet && st.wallet.chain === "Ethereum") ? `<div class="small" style="margin:4px 0 0">NFLX stock rewards go to Robinhood Wallet / MetaMask addresses.</div>` : ""}</div>
+        ${payEnabled() && !(st.wallet && st.wallet.chain === "Solana") ? `<div class="small" style="margin:4px 0 0">NFLX stock rewards go to Solana wallets.</div>` : ""}</div>
     </div>
-    ${payEnabled() && st.wallet && st.wallet.chain === "Ethereum" && REWARD ? nflxBreakdown() : ""}
+    ${payEnabled() && st.wallet && st.wallet.chain === "Solana" && REWARD ? nflxBreakdown() : ""}
 
     <div class="btns" style="margin-top:18px">
       <button class="btn play" id="rwClaim" ${watched && holds && !claimed && st.wallet ? "" : "disabled"}>${claimed ? "Come back tomorrow" : "Claim $Nutflix"}</button>
@@ -1635,12 +1634,12 @@ function renderAccount(){
     <div class="small">${API ? "Your account is saved on Nutflix and follows your wallet on any device." : "Saved in this browser. On the live site your account follows your wallet on any device."}</div>`;
 }
 function nflxSection(w){
-  if (w.chain !== "Ethereum") return `<div class="rw-lbl" style="margin-top:20px">NFLX stock rewards</div>
-    <div class="small" style="margin:6px 0 0">Daily NFLX stock-token rewards are sent on Robinhood Chain. Sign in with Robinhood Wallet or MetaMask to receive them.</div>`;
+  if (w.chain !== "Solana") return `<div class="rw-lbl" style="margin-top:20px">NFLX stock rewards</div>
+    <div class="small" style="margin:6px 0 0">Daily NFLX stock-token rewards are sent on Solana. Sign in with a Solana wallet to receive them.</div>`;
   const got = PAYOUTS.filter(p=>p.status==="confirmed"||p.status==="sent").reduce((a,p)=>a+Number(p.amount),0);
   const wait = PAYOUTS.filter(p=>p.status==="pending").reduce((a,p)=>a+Number(p.amount),0);
   const badge = { pending:"⏳ pending", sent:"📤 sent", confirmed:"✅ received", failed:"⚠️ retrying soon" };
-  return `<div class="rw-lbl" style="margin-top:20px">NFLX stock rewards · Robinhood Chain</div>
+  return `<div class="rw-lbl" style="margin-top:20px">NFLX stock rewards · Solana</div>
     <div class="ac-stats" style="grid-template-columns:repeat(2,1fr);margin-top:6px">
       <div><b>📈 ${nflxFmt(got.toFixed(6)) || 0}</b><span>NFLX received</span></div>
       <div><b>⏳ ${nflxFmt(wait.toFixed(6)) || 0}</b><span>Waiting for tonight's payout</span></div>
@@ -1733,7 +1732,7 @@ $("#acct").onclick = async e => {
 /* ---------- wallet sign-in ---------- */
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 function b58decode(s){
-  let bytes = [0];
+  const bytes = [];
   for (const c of s){
     let carry = B58.indexOf(c); if (carry < 0) throw new Error("bad base58");
     for (let j=0;j<bytes.length;j++){ carry += bytes[j]*58; bytes[j] = carry & 255; carry >>= 8; }
@@ -1750,17 +1749,10 @@ function linkMessage(address){
   const nonce = crypto.getRandomValues(new Uint8Array(8));
   return `Nutflix wants you to link this wallet.\n\nAddress: ${address}\nNonce: ${toHex(nonce)}\nIssued: ${new Date().toISOString()}\n\nSigning is free and does not send any transaction.`;
 }
-/* ---------- wallet discovery ----------
-   Ethereum: every wallet that announces itself (EIP-6963), plus window.ethereum as a fallback.
-   Solana: every Wallet Standard wallet that can sign messages, plus the older injected objects. */
-const EVM_FOUND = new Map(), SOL_FOUND = new Map();
+/* ---------- wallet discovery (Solana) ----------
+   Every Wallet Standard wallet that can sign messages, plus the older injected objects. */
+const SOL_FOUND = new Map();
 let WL_READY = false;   // set once the wallet list helpers below exist
-window.addEventListener("eip6963:announceProvider", e => {
-  const d = e.detail; if (!d || !d.info || !d.provider) return;
-  EVM_FOUND.set(d.info.uuid || d.info.rdns || d.info.name, { name: d.info.name, rdns: d.info.rdns || "", icon: d.info.icon, provider: d.provider });
-  if (WL_READY) renderWallets();
-});
-window.dispatchEvent(new Event("eip6963:requestProvider"));
 const wsRegister = (...wallets) => {
   for (const w of wallets) {
     if (!w || !w.features || !w.features["standard:connect"] || !w.features["solana:signMessage"]) continue;
@@ -1781,30 +1773,24 @@ function legacySolana(){
   if (window.backpack && window.backpack.connect) out.push({ name:"Backpack", legacy: window.backpack });
   return out;
 }
-const detect = () => ({ sol: SOL_FOUND.size || legacySolana().length, evm: EVM_FOUND.size || window.ethereum });
+const detect = () => ({ sol: SOL_FOUND.size || legacySolana().length });
 
 const selfUrl = () => location.href.split("#")[0];
 const noScheme = u => u.replace(/^https?:\/\//, "");
 const enc = encodeURIComponent;
 // well-known wallets: shown even when not installed (install link on desktop, open-in-app on phones)
 const KNOWN = [
-  { key:"metamask", name:"MetaMask", kind:"evm", icon:"🦊", match:/metamask/i, install:"https://metamask.io/download/", app: u => `https://metamask.app.link/dapp/${noScheme(u)}` },
-  { key:"robinhood", name:"Robinhood Wallet", kind:"evm", icon:"🪶", match:/robinhood/i, install:"https://robinhood.com/us/en/web3-wallet/", app: null },
-  { key:"coinbase", name:"Coinbase Wallet", kind:"evm", icon:"🔵", match:/coinbase/i, install:"https://www.coinbase.com/wallet/downloads", app: u => `https://go.cb-w.com/dapp?cb_url=${enc(u)}` },
-  { key:"trust", name:"Trust Wallet", kind:"evm", icon:"🛡️", match:/trust/i, install:"https://trustwallet.com/download", app: u => `https://link.trustwallet.com/open_url?coin_id=60&url=${enc(u)}` },
-  { key:"rabby", name:"Rabby", kind:"evm", icon:"🐰", match:/rabby/i, install:"https://rabby.io/", app: null },
-  { key:"okx", name:"OKX Wallet", kind:"evm", icon:"⚫", match:/okx/i, install:"https://www.okx.com/web3", app: u => `okx://wallet/dapp/url?dappUrl=${enc(u)}` },
-  { key:"rainbow", name:"Rainbow", kind:"evm", icon:"🌈", match:/rainbow/i, install:"https://rainbow.me/download", app: null },
   { key:"phantom", name:"Phantom", kind:"sol", icon:"👻", match:/phantom/i, install:"https://phantom.com/download", app: u => `https://phantom.app/ul/browse/${enc(u)}?ref=${enc(location.origin)}` },
   { key:"solflare", name:"Solflare", kind:"sol", icon:"☀️", match:/solflare/i, install:"https://solflare.com/download", app: u => `https://solflare.com/ul/v1/browse/${enc(u)}?ref=${enc(location.origin)}` },
   { key:"backpack", name:"Backpack", kind:"sol", icon:"🎒", match:/backpack/i, install:"https://backpack.app/downloads", app: null },
+  { key:"jupiter", name:"Jupiter Mobile", kind:"sol", icon:"🪐", match:/jupiter/i, install:"https://jup.ag/mobile", app: null },
+  { key:"okx", name:"OKX Wallet", kind:"sol", icon:"⚫", match:/okx/i, install:"https://www.okx.com/web3", app: u => `okx://wallet/dapp/url?dappUrl=${enc(u)}` },
+  { key:"trust", name:"Trust Wallet", kind:"sol", icon:"🛡️", match:/trust/i, install:"https://trustwallet.com/download", app: u => `https://link.trustwallet.com/open_url?coin_id=501&url=${enc(u)}` },
 ];
 const safeIcon = i => typeof i === "string" && /^data:image\/(png|jpeg|webp|gif|svg\+xml)[;,]/i.test(i) ? i : null;
 let WALLETS = [];
 function walletList(){
   const list = [];
-  for (const [id, w] of EVM_FOUND) list.push({ id:"evm:"+id, kind:"evm", name:w.name, icon:safeIcon(w.icon), detected:true, provider:w.provider });
-  if (!EVM_FOUND.size && window.ethereum) list.push({ id:"evm:injected", kind:"evm", name: window.ethereum.isMetaMask ? "MetaMask" : "Browser wallet", icon:null, emoji:"🦊", detected:true, provider: window.ethereum });
   for (const [name, w] of SOL_FOUND) list.push({ id:"sol:"+name, kind:"sol", name, icon:safeIcon(w.icon), detected:true, standard:w.standard });
   for (const w of legacySolana()) if (!list.some(x => x.kind === "sol" && x.name === w.name)) list.push({ id:"sol:legacy:"+w.name, kind:"sol", name:w.name, icon:null, detected:true, legacy:w.legacy });
   for (const k of KNOWN) {
@@ -1812,22 +1798,20 @@ function walletList(){
     if (hit) { hit.emoji = hit.emoji || k.icon; continue; }
     list.push({ id:"known:"+k.key, kind:k.kind, name:k.name, icon:null, emoji:k.icon, detected:false, known:k });
   }
-  return list.sort((a,b) => (b.detected - a.detected) || (a.kind === b.kind ? 0 : a.kind === "evm" ? -1 : 1));
+  return list.sort((a,b) => b.detected - a.detected);
 }
 function renderWallets(){
   const el = document.getElementById("lgWallets"); if (!el) return;
   WALLETS = walletList();
   const row = w => {
     const status = w.detected ? "Detected" : isMobile ? (w.known.app ? "Open app" : "Open in app") : "Install";
-    const chain = w.kind === "evm" ? "Ethereum · Robinhood Chain · NFLX rewards" : "Solana · no NFLX rewards";
+    const chain = "Solana · earn NFLX";
     return `<button class="wl-i ${w.detected ? "on" : ""}" data-w="${esc(w.id)}">
       <span class="wl-ic">${w.icon ? `<img src="${esc(w.icon)}" alt="">` : (w.emoji || "👛")}</span>
       <span class="wl-n">${esc(w.name)}<small>${chain}</small></span>
       <span class="wl-s">${status}</span></button>`;
   };
-  const evm = WALLETS.filter(w => w.kind === "evm"), sol = WALLETS.filter(w => w.kind === "sol");
-  el.innerHTML = `<div class="wl-h">Ethereum wallets · earn NFLX</div>${evm.map(row).join("")}
-    <div class="wl-h">Solana wallets</div>${sol.map(row).join("")}`;
+  el.innerHTML = `<div class="wl-h">Solana wallets · earn NFLX</div>${WALLETS.map(row).join("")}`;
 }
 WL_READY = true;
 
@@ -1855,34 +1839,16 @@ async function finishSignIn(chain, address, message, nonce, signature){
   return true;
 }
 // on phones there is no extension: open Nutflix inside the wallet app's browser instead
-function noWallet(kind){
+function noWallet(){
   if (isMobile) {
-    const url = location.href.split("#")[0];
-    location.href = kind === "sol"
-      ? `https://phantom.app/ul/browse/${encodeURIComponent(url)}?ref=${encodeURIComponent(location.origin)}`
-      : `https://metamask.app.link/dapp/${url.replace(/^https?:\/\//, "")}`;
+    location.href = `https://phantom.app/ul/browse/${encodeURIComponent(selfUrl())}?ref=${encodeURIComponent(location.origin)}`;
     return false;
   }
-  setMsg = kind === "sol"
-    ? "No Solana wallet found in this browser. Install Phantom, or open Nutflix in a browser where it's installed."
-    : "No Ethereum wallet found in this browser. Install MetaMask (or similar), or open Nutflix where it's installed.";
+  setMsg = "No Solana wallet found in this browser. Install Phantom (or Solflare / Backpack), then reload Nutflix.";
   afterLink(); return false;
 }
 function afterLink(){ renderAll(); $("#lgMsg").textContent = setMsg; }
 
-async function linkEvmWith(eth, name){
-  let ok = false;
-  try {
-    const [address] = await eth.request({ method:"eth_requestAccounts" });
-    const { nonce, message } = await signInMessage("Ethereum", address);
-    const hexMsg = "0x" + toHex(new TextEncoder().encode(message));
-    const signature = await eth.request({ method:"personal_sign", params:[hexMsg, address] });
-    setMsg = "";
-    ok = await finishSignIn("Ethereum", address, message, nonce, signature);
-    if (ok) toast(`🔗 Signed in with ${name}`);
-  } catch(e){ setMsg = "Sign-in cancelled or refused by the wallet."; }
-  afterLink(); return ok;
-}
 async function linkSolWith(w){
   let ok = false;
   try {
@@ -1915,11 +1881,10 @@ async function linkWallet(id){
     setMsg = `${k.name} isn't installed in this browser. Install it, then reload Nutflix.`;
     afterLink(); return false;
   }
-  return w.kind === "evm" ? linkEvmWith(w.provider, w.name) : linkSolWith(w);
+  return linkSolWith(w);
 }
 // kept for older callers
 const linkSolana = () => { const w = walletList().find(x => x.kind === "sol" && x.detected); return w ? linkWallet((WALLETS = walletList(), w.id)) : noWallet("sol"); };
-const linkEvm = () => { const w = walletList().find(x => x.kind === "evm" && x.detected); return w ? linkWallet((WALLETS = walletList(), w.id)) : noWallet("evm"); };
 function linkDemo(){
   if (API) return false;                  // the live site only accepts real wallets
   const address = "0xDEMO" + toHex(crypto.getRandomValues(new Uint8Array(18)));
@@ -1937,14 +1902,6 @@ async function signOut(){
 }
 
 /* ---------- signature verification (used by the admin view) ---------- */
-let ethersP;
-const loadEthers = () => ethersP ||= new Promise((ok, ko)=>{
-  if (window.ethers) return ok(window.ethers);
-  const s = document.createElement("script");
-  s.src = "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js";
-  s.onload = ()=>ok(window.ethers); s.onerror = ()=>{ ethersP = null; ko(new Error("load")); };
-  document.head.appendChild(s);
-});
 async function verifyWallet(w){
   if (!w || w.demo || !w.signature || !w.message) return "unverified";
   try {
@@ -1952,11 +1909,6 @@ async function verifyWallet(w){
       const key = await crypto.subtle.importKey("raw", b58decode(w.address), { name:"Ed25519" }, false, ["verify"]);
       const ok = await crypto.subtle.verify({ name:"Ed25519" }, key, fromB64(w.signature), new TextEncoder().encode(w.message));
       return ok && w.message.includes(w.address) ? "valid" : "invalid";
-    }
-    if (w.chain === "Ethereum"){
-      const ethers = await loadEthers();
-      const rec = ethers.verifyMessage(w.message, w.signature);
-      return rec.toLowerCase() === w.address.toLowerCase() && w.message.includes(w.address) ? "valid" : "invalid";
     }
   } catch(e){ return "error"; }
   return "unverified";
@@ -2039,7 +1991,6 @@ function showLogin(msg){
 }
 // sign-in opens over whatever the visitor is looking at; Back / ✕ returns them there
 const openSignin = msg => {
-  window.dispatchEvent(new Event("eip6963:requestProvider"));
   renderLogin(); $("#lgMsg").textContent = msg || "";
   const onLanding = document.body.classList.contains("pre");
   $("#lgBackBtn").textContent = onLanding ? "← Back" : "← Back to browsing";

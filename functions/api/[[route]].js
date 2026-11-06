@@ -8,7 +8,8 @@
 //   DB         D1 database (tables are created on first request)
 //   ADMIN_KEY  secret used by /admin.html to list every account
 
-import { recoverPersonalSign } from "../_lib/evm.js";
+import { ed25519 } from "../_lib/ed25519.js";
+import { b58decode, isPubkey } from "../_lib/solana.js";
 import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema } from "../_lib/payouts.js";
 import { factors as rewardFactors, nflxFor, nutConfig, nutPriceUsd, nutBalance, tierFor, nextTier, publicTiers, MIN_USD, VIDEOS_PER_DAY } from "../_lib/rewards.js";
 
@@ -26,46 +27,18 @@ const utcDay = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 const hex = u => [...u].map(b => b.toString(16).padStart(2, "0")).join("");
 const randomHex = n => hex(crypto.getRandomValues(new Uint8Array(n)));
 
-const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-function b58decode(s) {
-  let bytes = [0];
-  for (const c of s) {
-    let carry = B58.indexOf(c);
-    if (carry < 0) throw new Error("bad base58");
-    for (let j = 0; j < bytes.length; j++) { carry += bytes[j] * 58; bytes[j] = carry & 255; carry >>= 8; }
-    while (carry) { bytes.push(carry & 255); carry >>= 8; }
-  }
-  for (const c of s) { if (c === "1") bytes.push(0); else break; }
-  return new Uint8Array(bytes.reverse());
-}
 const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
+/** Solana only: a 32-byte base58 public key. */
 function normalizeAddress(chain, address) {
-  if (typeof address !== "string") return null;
-  if (chain === "Ethereum") return /^0x[0-9a-fA-F]{40}$/.test(address) ? address.toLowerCase() : null;
-  if (chain === "Solana") {
-    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return null;
-    try { return b58decode(address).length === 32 ? address : null; } catch { return null; }
-  }
-  return null;
+  return chain === "Solana" && isPubkey(address) ? address : null;
 }
 
-async function verifyEd25519(pubKey, sig, msg) {
-  for (const alg of [{ name: "Ed25519" }, { name: "NODE-ED25519", namedCurve: "NODE-ED25519" }]) {
-    try {
-      const key = await crypto.subtle.importKey("raw", pubKey, alg, false, ["verify"]);
-      return await crypto.subtle.verify(alg, key, sig, msg);
-    } catch { /* try the next algorithm name */ }
-  }
-  return false;
-}
-
+/** Ed25519 signature check of the sign-in message (Solana wallets sign the raw UTF-8 bytes). */
 async function signatureIsValid(chain, address, message, signature) {
-  try {
-    if (chain === "Solana") return await verifyEd25519(b58decode(address), fromB64(signature), enc.encode(message));
-    if (chain === "Ethereum") return recoverPersonalSign(message, signature) === address;
-  } catch { /* malformed input */ }
-  return false;
+  if (chain !== "Solana") return false;
+  try { return ed25519.verify(fromB64(signature), enc.encode(message), b58decode(address)); }
+  catch { return false; }
 }
 
 /* ---------- storage ---------- */
@@ -104,7 +77,7 @@ async function rewardPreview(env, db, row, state, today, deps = env.__TEST_CHAIN
   const c = nutConfig(env);
   const base = { launched: c.launched, buyUrl: c.buyUrl, minUsd: MIN_USD, videos: state.videos || 0, tiers: publicTiers() };
   if (!c.launched) return { ...base, eligible: false, reason: "not_launched" };
-  if (row.chain !== "Ethereum") return { ...base, eligible: false, reason: "wrong_wallet", balance: 0, usd: 0 };
+  if (row.chain !== "Solana") return { ...base, eligible: false, reason: "wrong_wallet", balance: 0, usd: 0 };
   let balance, price;
   try { [balance, price] = await Promise.all([nutBalance(env, row.address, deps), nutPriceUsd(env, db).then(p => p.price)]); }
   catch { return { ...base, eligible: false, reason: "chain_unreachable" }; }
@@ -159,7 +132,7 @@ export async function onRequest({ request, env, params }) {
   const route = [].concat(params.route || []).join("/");
   const method = request.method;
   const adminKey = typeof env.ADMIN_KEY === "string" ? env.ADMIN_KEY.trim() : "";
-  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, payouts: publicPayoutInfo(env), nut: { launched: nutConfig(env).launched, buyUrl: nutConfig(env).buyUrl, token: nutConfig(env).launched ? nutConfig(env).token : null, minUsd: MIN_USD, tiers: publicTiers(), videosPerDay: VIDEOS_PER_DAY }, today: utcDay(), serverTime: Date.now() });
+  if (route === "health") return json({ ok: true, configured: !!env.DB, admin: !!adminKey, payouts: publicPayoutInfo(env), nut: { chain: "Solana", launched: nutConfig(env).launched, buyUrl: nutConfig(env).buyUrl, chartUrl: nutConfig(env).chartUrl, token: nutConfig(env).launched ? nutConfig(env).token : null, minUsd: MIN_USD, tiers: publicTiers(), videosPerDay: VIDEOS_PER_DAY }, today: utcDay(), serverTime: Date.now() });
   if (!env.DB) return fail(503, "database_not_configured");
   const db = env.DB;
 
@@ -245,7 +218,7 @@ export async function onRequest({ request, env, params }) {
     // public leaderboard: best current watch streaks (short addresses and profile names only)
     if (route === "leaderboard" && method === "GET") {
       const today = utcDay();
-      const { results } = await db.prepare("SELECT address, chain, state FROM users").all();
+      const { results } = await db.prepare("SELECT address, chain, state FROM users WHERE chain = 'Solana'").all();
       const rows = results.map(r => {
         const s = readState(r), w = watchStreaks(s.watchLog, today), p = (s.profiles || [])[0];
         return { who: shortAddr(r.address), chain: r.chain, name: p ? p.name : null, avatar: p ? p.avatar : null, bg: p ? p.bg : null,

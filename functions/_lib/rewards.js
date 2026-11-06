@@ -1,19 +1,18 @@
 // Who earns NFLX, and how much.
 //
-// Holdings are real $Nutflix bought on Robinhood Chain (no free supply). Their value in
-// dollars decides the tier; days held and videos watched stack on top:
+// Holdings are real $Nutflix bought on Solana (no free supply). Their value in dollars decides the
+// tier; days held and videos watched stack on top:
 //
 //   NFLX/day = NFLX_PER_CLAIM × tier × time × watch   (capped at MAX_PER_USER_NFLX)
 //   tier  = by $ value of $Nutflix held (table below); under the first tier = not eligible
 //   time  = 1 + 5% per day held, max 2x; back to day 1 if the value drops under the first tier
 //   watch = 1 + 2% per video watched (max 3 counted per day), max 2x
 //
-// Settings: NUT_TOKEN_ADDRESS (required), NUT_PRICE_USD (optional fixed price; otherwise
-// the price is read from DexScreener and cached 10 minutes), NUT_BUY_URL (link to buy).
+// Settings: NUT_MINT (the $Nutflix mint; empty until launch), NUT_PRICE_USD (optional fixed price;
+// otherwise read from DexScreener and cached 10 minutes), NUT_BUY_URL (optional buy link).
 
-import { ethers } from "ethers";
-// RPC must be https; plain http is only accepted for a local dev node
-const okRpc = u => /^https:\/\//.test(u) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(u);
+import { isPubkey, rpcClient, tokenBalance } from "./solana.js";
+import { DEFAULT_RPC } from "./payouts.js";
 
 export const TIERS = [
   { key: "bronze",  name: "Bronze",  icon: "🥉", minUsd: 150,   mult: 1 },
@@ -24,8 +23,6 @@ export const TIERS = [
 ];
 export const MIN_USD = TIERS[0].minUsd;
 export const VIDEOS_PER_DAY = 3;
-
-const ERC20 = ["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)"];
 const round2 = x => Math.round(x * 100) / 100;
 
 export function tierFor(usd) {
@@ -51,20 +48,21 @@ export function nflxFor(env, f) {
 }
 
 export function nutConfig(env) {
-  const token = (env.NUT_TOKEN_ADDRESS || "").trim();
-  const rpc = (env.RPC_URL || "").trim();
+  const token = (env.NUT_MINT || "").trim();
+  const rpc = (env.SOLANA_RPC_URL || DEFAULT_RPC).trim();
   const fixed = Number(env.NUT_PRICE_USD);
+  const launched = isPubkey(token);
   return {
-    launched: ethers.isAddress(token) && okRpc(rpc),
-    token, rpc, chainId: Number(env.CHAIN_ID || 4663),
+    launched, token, rpc,
     fixedPrice: Number.isFinite(fixed) && fixed > 0 ? fixed : null,
-    // buy link: NUT_BUY_URL if set, otherwise a DexScreener search for the CA (works on any chain/DEX)
+    // buy link: NUT_BUY_URL if set, otherwise Jupiter swap SOL → $Nutflix
     buyUrl: /^https:\/\//.test(env.NUT_BUY_URL || "") ? env.NUT_BUY_URL.trim()
-      : ethers.isAddress(token) ? `https://dexscreener.com/search?q=${token}` : null,
+      : launched ? `https://jup.ag/swap/SOL-${token}` : null,
+    chartUrl: launched ? `https://dexscreener.com/solana/${token}` : null,
   };
 }
 
-/** $Nutflix price in USD: NUT_PRICE_USD if set, else DexScreener (most liquid pair), cached 10 minutes in D1. */
+/** $Nutflix price in USD: NUT_PRICE_USD if set, else DexScreener (most liquid Solana pair), cached 10 minutes in D1. */
 export async function nutPriceUsd(env, db, fetcher = fetch) {
   const c = nutConfig(env);
   if (c.fixedPrice) return { price: c.fixedPrice, source: "fixed" };
@@ -77,7 +75,7 @@ export async function nutPriceUsd(env, db, fetcher = fetch) {
     const r = await fetcher(`https://api.dexscreener.com/latest/dex/tokens/${c.token}`, { signal: ctl.signal });
     clearTimeout(t);
     const pairs = ((await r.json()).pairs || [])
-      .filter(p => p.baseToken && p.baseToken.address && p.baseToken.address.toLowerCase() === c.token.toLowerCase() && Number(p.priceUsd) > 0)
+      .filter(p => p.chainId === "solana" && p.baseToken && p.baseToken.address === c.token && Number(p.priceUsd) > 0)
       .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
     if (!pairs.length) throw new Error("no pair");
     const price = Number(pairs[0].priceUsd);
@@ -89,13 +87,11 @@ export async function nutPriceUsd(env, db, fetcher = fetch) {
   }
 }
 
-/** Real on-chain $Nutflix balance of an Ethereum-compatible address. */
-export async function nutBalance(env, address, deps) {
+/** Real on-chain $Nutflix balance of a Solana wallet, in whole tokens. */
+export async function nutBalance(env, owner, deps) {
   const c = nutConfig(env);
-  const provider = deps?.provider || new ethers.JsonRpcProvider(c.rpc, c.chainId, { staticNetwork: true });
-  const nut = deps?.nut || new ethers.Contract(c.token, ERC20, provider);
-  const [bal, dec] = await Promise.all([nut.balanceOf(address), nut.decimals()]);
-  return Number(ethers.formatUnits(bal, dec));
+  const rpc = deps?.rpc || rpcClient(c.rpc);
+  return (await tokenBalance(rpc, owner, c.token)).amount;
 }
 
 export function publicTiers() {

@@ -22,22 +22,23 @@
       "database_id": "330bdd95-4253-4c0e-aa59-2f6bc039e878"
     }
   ],
-  // once a day at 00:10 UTC: send the NFLX payouts queued by the previous day's claims
+  // once a day at 00:10 UTC: send the NFLX payouts queued by the previous day's claims (Solana)
   "triggers": { "crons": ["10 0 * * *"] },
-  // NFLX payouts on Robinhood Chain (nothing secret here; the treasury key and ADMIN_KEY are dashboard secrets).
-  // NFLX_TOKEN_ADDRESS is the official Netflix Robinhood Token (Series 61 in Robinhood's final terms).
-  // Set PAYOUTS_ENABLED to "true" only once the treasury is funded and the legal side is cleared.
+  // Everything runs on Solana (nothing secret here: SOLANA_TREASURY_KEY and ADMIN_KEY are dashboard secrets).
+  // NFLX rewards are the "Netflix - Backpack Securities" token (Token-2022, 6 decimals).
+  // Payouts only go out when PAYOUTS_ENABLED is "true" AND the SOLANA_TREASURY_KEY secret is set.
   "vars": {
-    // ⬇️ LAUNCH: paste the $Nutflix contract address (CA) here. Everything else follows from it:
-    //    balances and tiers are read on-chain, the price comes from DexScreener, the Buy button and
-    //    the CA shown on the site are generated. Leave it empty until the token exists.
-    "NUT_TOKEN_ADDRESS": "0x4cd810071d396ed662268ec2990dc510f33a3f62",
-    "RPC_URL": "https://rpc.mainnet.chain.robinhood.com",
-    "EXPLORER_URL": "https://robinhoodchain.blockscout.com",
-    "NFLX_TOKEN_ADDRESS": "0xe0444ef8bf4ed74f74fd73686e2ddf4c1c5591e8",
+    // ⬇️ LAUNCH: paste the $Nutflix mint address (CA) here. Everything else follows from it:
+    //    balances and tiers are read on Solana, the price comes from DexScreener, the Buy button
+    //    (Jupiter) and the CA shown on the site are generated. Leave it empty until the token exists.
+    "NUT_MINT": "",
+    "NFLX_MINT": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
+    "SOLANA_RPC_URL": "https://api.mainnet-beta.solana.com",
+    "EXPLORER_URL": "https://solscan.io",
     "NFLX_PER_CLAIM": "0.01",
     "MAX_PER_USER_NFLX": "0.1",
     "MAX_DAILY_NFLX": "1",
+    "PRIORITY_FEE": "5000",
     "PAYOUTS_ENABLED": "true"
   },
   // keep variables added in the dashboard (secrets such as ADMIN_KEY are always kept)
