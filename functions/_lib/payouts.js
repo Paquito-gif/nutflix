@@ -150,19 +150,35 @@ export async function runPayouts(env, { deps = {}, now = Date.now() } = {}) {
       await db.prepare("UPDATE payouts SET status = 'failed', error = 'not a Solana address' WHERE id = ?").bind(row.id).run();
       out.failed++; continue;
     }
+    // 1) reserve the row atomically: if another run (cron + "Run payouts now") already took it, skip it
+    const lock = await db.prepare("UPDATE payouts SET status = 'sending' WHERE id = ? AND status = 'pending'").bind(row.id).run();
+    if (!lock || !lock.meta || lock.meta.changes !== 1) continue;
+    let t;
     try {
       const { value: { blockhash } } = await rpc("getLatestBlockhash", [{ commitment: "confirmed" }]);
-      const t = buildTransfer({ signer: c.signer, recipient: row.address, mint: c.mint, tokenProgram: mi.program,
+      t = buildTransfer({ signer: c.signer, recipient: row.address, mint: c.mint, tokenProgram: mi.program,
         decimals: mi.decimals, raw, blockhash, priorityMicroLamports: c.priority, computeUnits: 60000 });
+    } catch (e) {   // nothing was sent: give the row back
+      await db.prepare("UPDATE payouts SET status = 'pending', error = ? WHERE id = ?").bind(String(e.message || e).slice(0, 300), row.id).run();
+      out.stoppedBy = "rpc_error"; break;
+    }
+    // 2) record the signature BEFORE sending: whatever happens next, settlement decides (confirmed / never landed),
+    //    so a transfer that may have gone through is never sent a second time
+    await db.prepare("UPDATE payouts SET status = 'sent', tx_hash = ?, sent_at = ?, sent_day = ?, error = NULL WHERE id = ?")
+      .bind(t.signature, now, today, row.id).run();
+    budget -= raw; balance -= raw;
+    try {
       await rpc("sendTransaction", [t.base64, { encoding: "base64", preflightCommitment: "confirmed", maxRetries: 5 }]);
-      budget -= raw; balance -= raw;
-      await db.prepare("UPDATE payouts SET status = 'sent', tx_hash = ?, sent_at = ?, sent_day = ?, error = NULL WHERE id = ?")
-        .bind(t.signature, now, today, row.id).run();
       out.sent++;
     } catch (e) {
-      await db.prepare("UPDATE payouts SET status = 'failed', error = ? WHERE id = ?").bind(String(e.message || e).slice(0, 300), row.id).run();
+      const msg = String(e.message || e);
+      // rejected before landing (simulation / preflight error): safe to mark failed right away
+      if (/simulation|preflight|insufficient|invalid|blockhash not found|custom program error/i.test(msg))
+        await db.prepare("UPDATE payouts SET status = 'failed', error = ? WHERE id = ?").bind(msg.slice(0, 300), row.id).run();
+      else  // unknown outcome (timeout, network): leave it 'sent'; settlement confirms it or fails it after ~3 min
+        await db.prepare("UPDATE payouts SET error = ? WHERE id = ?").bind(("unconfirmed: " + msg).slice(0, 300), row.id).run();
       out.failed++;
-      if (/insufficient (funds|lamports)/i.test(String(e.message))) { out.stoppedBy = "treasury_out_of_sol"; break; }
+      if (/insufficient (funds|lamports)/i.test(msg)) { out.stoppedBy = "treasury_out_of_sol"; break; }
     }
   }
   out.left = pending.length - out.sent - out.failed;

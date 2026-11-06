@@ -20,8 +20,34 @@ const AVATARS = ["hodl", "peachy", "righty", "big-egg", "incognito", "sister", "
 const MAX_HISTORY = 120;
 
 const enc = new TextEncoder();
-const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
+const API_HEADERS = {
+  "content-type": "application/json", "cache-control": "no-store",
+  "x-content-type-options": "nosniff", "x-frame-options": "DENY", "referrer-policy": "no-referrer",
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+};
+const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: API_HEADERS });
+
+/* ---------- small in-memory guards & caches (per Worker isolate) ---------- */
+const clientIp = request => request.headers.get("cf-connecting-ip") || "local";
+const hits = new Map();   // key -> [timestamps]
+/** true when `key` already did `max` things in the last `windowMs` (and records this attempt). */
+function limited(key, max, windowMs, now = Date.now()) {
+  const list = (hits.get(key) || []).filter(t => now - t < windowMs);
+  const over = list.length >= max;
+  if (!over) list.push(now);
+  hits.set(key, list);
+  if (hits.size > 5000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
+  return over;
+}
+const memo = new Map();   // key -> { at, value }
+async function cached(key, ttlMs, fn) {
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+  const value = await fn();
+  memo.set(key, { at: Date.now(), value });
+  if (memo.size > 2000) memo.delete(memo.keys().next().value);
+  return value;
+}
 const fail = (status, error) => json({ error }, status);
 const utcDay = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 const hex = u => [...u].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -107,7 +133,7 @@ async function rewardPreview(env, db, row, state, today, deps = env.__TEST_CHAIN
   if (!c.launched) return { ...base, eligible: false, reason: "not_launched" };
   if (row.chain !== "Solana") return { ...base, eligible: false, reason: "wrong_wallet", balance: 0, usd: 0 };
   let balance, price;
-  try { [balance, price] = await Promise.all([nutBalance(env, row.address, deps), nutPriceUsd(env, db).then(p => p.price)]); }
+  try { [balance, price] = await Promise.all([(deps ? nutBalance(env, row.address, deps) : cached("bal:" + row.address, 10e3, () => nutBalance(env, row.address))), nutPriceUsd(env, db).then(p => p.price)]); }
   catch { return { ...base, eligible: false, reason: "chain_unreachable" }; }
   if (!price) return { ...base, eligible: false, reason: "no_price", balance };
   const usd = balance * price;
@@ -155,6 +181,18 @@ function timingSafeEqual(a, b) {
   return r === 0;
 }
 
+/** Admin key check, with at most 10 wrong keys per IP per 15 minutes. */
+function adminDenied(request, adminKey) {
+  if (!adminKey) return fail(503, "admin_key_not_set");
+  const key = "adminfail:" + clientIp(request), win = 15 * 60e3;
+  if ((hits.get(key) || []).filter(t => Date.now() - t < win).length >= 10) return fail(429, "too_many_attempts");
+  if (!timingSafeEqual((request.headers.get("x-admin-key") || "").trim(), adminKey)) {
+    limited(key, Infinity, win);   // record the failure
+    return fail(401, "unauthorized");
+  }
+  return null;
+}
+
 /* ---------- routes ---------- */
 export async function onRequest({ request, env, params }) {
   const route = [].concat(params.route || []).join("/");
@@ -172,6 +210,10 @@ export async function onRequest({ request, env, params }) {
       const { chain, address: rawAddress } = await body(request);
       const address = normalizeAddress(chain, rawAddress);
       if (!address) return fail(400, "bad_address");
+      if (limited("nonce-ip:" + clientIp(request), 30, 10 * 60e3)) return fail(429, "too_many_requests");
+      const recent = await db.prepare("SELECT COUNT(*) AS n FROM nonces WHERE address = ? AND created_at > ?")
+        .bind(address, Date.now() - 10 * 60e3).first();
+      if (recent && recent.n >= 10) return fail(429, "too_many_requests");
       const nonce = randomHex(16);
       const host = new URL(request.url).host;
       const message = `Nutflix wants you to sign in with this wallet.\n\nAddress: ${address}\nDomain: ${host}\nNonce: ${nonce}\nIssued: ${new Date().toISOString()}\n\nSigning is free and does not send any transaction.`;
@@ -208,8 +250,7 @@ export async function onRequest({ request, env, params }) {
 
     // 3. admin listing
     if (route === "admin/users" && method === "GET") {
-      if (!adminKey) return fail(503, "admin_key_not_set");
-      if (!timingSafeEqual((request.headers.get("x-admin-key") || "").trim(), adminKey)) return fail(401, "unauthorized");
+      const denied = adminDenied(request, adminKey); if (denied) return denied;
       const { results } = await db.prepare("SELECT * FROM users ORDER BY last_seen DESC LIMIT 1000").all();
       return json({
         today: utcDay(),
@@ -223,8 +264,7 @@ export async function onRequest({ request, env, params }) {
     }
 
     if (route.startsWith("admin/payouts") || route === "admin/treasury") {
-      if (!adminKey) return fail(503, "admin_key_not_set");
-      if (!timingSafeEqual((request.headers.get("x-admin-key") || "").trim(), adminKey)) return fail(401, "unauthorized");
+      const denied = adminDenied(request, adminKey); if (denied) return denied;
       await ensurePayoutSchema(db);
       if (route === "admin/payouts" && method === "GET") {
         const { results } = await db.prepare("SELECT * FROM payouts ORDER BY id DESC LIMIT 500").all();
@@ -233,7 +273,7 @@ export async function onRequest({ request, env, params }) {
       if (route === "admin/payouts/run" && method === "POST") return json(await runPayouts(env));
       if (route === "admin/payouts/retry" && method === "POST") {
         const { id } = await body(request);
-        await db.prepare("UPDATE payouts SET status = 'pending', error = NULL WHERE id = ? AND status = 'failed'").bind(Number(id)).run();
+        await db.prepare("UPDATE payouts SET status = 'pending', error = NULL WHERE id = ? AND status IN ('failed', 'sending')").bind(Number(id)).run();
         return json({ ok: true });
       }
       if (route === "admin/treasury" && method === "GET") {
@@ -244,7 +284,7 @@ export async function onRequest({ request, env, params }) {
     }
 
     // public leaderboard: best current watch streaks (short addresses and profile names only)
-    if (route === "leaderboard" && method === "GET") {
+    if (route === "leaderboard" && method === "GET") return json(await cached("leaderboard", 20e3, async () => {
       const today = utcDay();
       const { results } = await db.prepare("SELECT address, chain, state FROM users").all();
       const rows = results.map(r => {
@@ -253,8 +293,8 @@ export async function onRequest({ request, env, params }) {
           streak: w.cur, best: Math.max(w.best, s.best || 0), days: w.days, videos: s.videos || 0 };
       }).filter(x => x.days > 0)
         .sort((a, b) => b.streak - a.streak || b.best - a.best || b.days - a.days || b.videos - a.videos);
-      return json({ today, players: rows.length, rows: rows.slice(0, 50) });
-    }
+      return { today, players: rows.length, rows: rows.slice(0, 50) };
+    }));
 
     // everything below needs a session
     const me = await sessionUser(db, request);
@@ -284,6 +324,7 @@ export async function onRequest({ request, env, params }) {
       if (state.videoToday < VIDEOS_PER_DAY) { state.videoToday++; state.videos = (state.videos || 0) + 1; }
       pushHistory(state, { d: today, at: Date.now(), ty: "watch", t });
       await writeState(db, row.address, state);
+      memo.delete("leaderboard");
       return json({ ...account(row, state), reward: await rewardPreview(env, db, row, state, today) });
     }
 
@@ -292,6 +333,7 @@ export async function onRequest({ request, env, params }) {
     if (route === "claim" && method === "POST") {
       if (state.claimed === today) return fail(409, "already_claimed_today");
       if (state.watched !== today) return fail(409, "watch_first");
+      memo.delete("bal:" + row.address);   // a claim always reads the wallet's balance fresh
       const preview = await rewardPreview(env, db, row, state, today);
       if (preview.reason === "chain_unreachable" || preview.reason === "no_price") return fail(503, preview.reason);
       if (preview.reason === "not_launched") return fail(409, "not_launched");

@@ -748,7 +748,7 @@ function poster(s){
     <defs><linearGradient id="g${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${s.bg}"/><stop offset="1" stop-color="#050302"/></linearGradient>
     <linearGradient id="f${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".75"/><stop offset=".6" stop-color="#000" stop-opacity="0"/></linearGradient></defs>
     <rect width="320" height="180" fill="url(#g${uid})"/>
-    ${s.banner ? `<image href="${s.banner}" width="320" height="180" preserveAspectRatio="xMidYMid slice"/>` : SCENE[s.scene](s.bg)}
+    ${s.banner ? `<image href="${s.thumb || s.banner}" width="320" height="180" preserveAspectRatio="xMidYMid slice"/>` : SCENE[s.scene](s.bg)}
     ${s.banner ? "" : s.img ? `<image href="${s.img}" x="190" y="8" width="122" height="166" preserveAspectRatio="xMidYMax meet"/>`
       : `<g transform="translate(${s.mx??186},${s.my??14}) scale(${s.ms??.56})">${mascot(s.m).replace(/^<svg[^>]*>|<\/svg>$/g,"")}</g>`}
     <rect width="320" height="180" fill="url(#f${uid++})"/>
@@ -838,7 +838,7 @@ const BANNERS = {
   "3 Seconds": "bn-3-seconds.webp",
   "Narcos: The Post-Nut Nap": "bn-narcos.webp",
 };
-shows.forEach(sh => { if (BANNERS[sh.t]) sh.banner = BANNERS[sh.t]; });
+shows.forEach(sh => { if (BANNERS[sh.t]) { sh.banner = BANNERS[sh.t]; sh.thumb = BANNERS[sh.t].replace(/^bn-/, "th-"); } });
 shows[0].m = hodl(hodlPhase(DAY)); shows[0].img = HODL_IMG[hodlPhase(DAY)];
 /* shows that have a real video episode (see playEpisode) */
 const EPISODES = {
