@@ -32,7 +32,7 @@
     // ⬇️ LAUNCH: paste the $Nutflix mint address (CA) here. Everything else follows from it:
     //    balances and tiers are read on Solana, the price comes from DexScreener, the Buy button
     //    (Jupiter) and the CA shown on the site are generated. Leave it empty until the token exists.
-    "NUT_MINT": "",
+    "NUT_MINT": "31nxVB6GMbxKZH6vN4DK6i1qkMXNxwEDbKroc6kspump",
     "NFLX_MINT": "NFLX7qV57zuVxCoHy3s1jiGZyALraLNwttbxdvmYJLJ",
     "EXPLORER_URL": "https://solscan.io",
     "NFLX_PER_CLAIM": "0.01",
