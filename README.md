@@ -31,11 +31,15 @@ Opens the site with the API and a local D1 database on http://localhost:8787.
 
 ## Launch day: paste the CA, that's it
 
-1. Open `wrangler.jsonc` and paste the $Nutflix **mint address** in `"NUT_MINT": ""`.
-2. Commit & push. Cloudflare redeploys in ~1 minute.
+1. Open `https://nutflix.site/admin.html` and unlock it with your `ADMIN_KEY`.
+2. In the **🚀 Launch** card, paste the $Nutflix **CA** (the token's mint address) and press **Go live**.
 
-From then on, automatically: balances and tiers are read on Solana, the price comes from DexScreener (as soon as a
-pair exists), the "Buy $Nutflix" button opens a Jupiter swap, "Chart" opens DexScreener, and the official CA is
+The server checks on Solana that it really is a token (a wallet address or a typo is refused), then the site goes
+live within seconds. No code change, no redeploy. Before that, the landing page shows "Launching soon on Solana".
+(Alternative: put the mint in `wrangler.jsonc` → `"NUT_MINT"`; if set there, it wins over the admin page.)
+
+From then on, automatically: balances and tiers are read on Solana, the price comes from DexScreener, or Jupiter while
+there is no DexScreener pair yet (refreshed every 2 minutes), the "Buy $Nutflix" button opens a Jupiter swap, "Chart" opens DexScreener, and the official CA is
 shown on the landing page and in Nut Rewards with a Copy button. Optional overrides: `NUT_BUY_URL`, `NUT_PRICE_USD`.
 
 ## Rewards: who earns NFLX, and how much

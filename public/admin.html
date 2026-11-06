@@ -65,6 +65,10 @@
   </div>
 
   <div id="app" class="hide">
+    <div class="card" id="launch" style="margin-bottom:16px">
+      <div class="sec" style="margin:0 0 8px">🚀 Launch · $Nutflix CA</div>
+      <div id="launchBody"><span class="muted">Loading…</span></div>
+    </div>
     <div class="stats" id="stats"></div>
     <div class="tools"><input id="q" placeholder="Search an address…"><span class="muted" id="count"></span></div>
     <div class="table"><table>
@@ -96,6 +100,7 @@ async function load(){
   let res;
   try { res = await fetch("/api/admin/users", { headers: { "x-admin-key": KEY }, cache: "no-store" }); }
   catch (e) { $("#err").textContent = "Can't reach the API."; return; }
+  if (res.status === 429) { show(false); $("#err").textContent = "Too many wrong keys. Wait 15 minutes."; return; }
   if (res.status === 401) { sessionStorage.removeItem("nutflix_admin"); KEY = ""; show(false); $("#err").textContent = "Wrong key."; return; }
   if (res.status === 503) {
     const e = (await res.json().catch(() => ({}))).error;
@@ -108,7 +113,39 @@ async function load(){
   if (!res.ok) { $("#err").textContent = "Error " + res.status; return; }
   DATA = await res.json();
   try { sessionStorage.setItem("nutflix_admin", KEY); } catch (e) {}
-  show(true); render(); loadPayouts();
+  show(true); render(); loadPayouts(); loadLaunch();
+}
+const LAUNCH_ERR = { not_a_solana_address: "That's not a Solana address. Paste the token's CA (mint).",
+  mint_not_found: "No account with this address on Solana. Check the CA (typo?).",
+  not_a_token_mint: "This address is not a token (maybe a wallet or a pool). Paste the token's CA.",
+  solana_unreachable: "Can't reach Solana right now. Check SOLANA_RPC_URL and try again.",
+  set_in_wrangler: "The CA is set in wrangler.jsonc (NUT_MINT): change it there." };
+async function loadLaunch(){
+  const r = await adminFetch("admin/launch");
+  const el = $("#launchBody");
+  if (r.mint) {
+    el.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="tag today">LIVE</span>
+      <code style="font-size:14px;word-break:break-all">${esc(r.mint)}</code>
+      <a class="mini" href="https://dexscreener.com/solana/${esc(r.mint)}" target="_blank" rel="noopener" style="text-decoration:none">Chart ↗</a>
+      <a class="mini" href="https://solscan.io/token/${esc(r.mint)}" target="_blank" rel="noopener" style="text-decoration:none">Solscan ↗</a>
+      ${r.source === "admin" ? `<button class="mini" id="unlaunch">Remove</button>` : `<span class="muted" style="font-size:12px">set in wrangler.jsonc</span>`}</div>
+      <p class="muted" style="font-size:13px;margin-top:10px">The site shows this CA, the Buy and Chart buttons, and reads every wallet's $Nutflix on Solana.</p>`;
+    const u = $("#unlaunch"); if (u) u.onclick = async () => {
+      if (!confirm("Remove the CA from the site? Rewards pause until you paste it again.")) return;
+      await adminFetch("admin/launch", { method: "POST", body: JSON.stringify({ mint: "" }) }); loadLaunch(); };
+    return;
+  }
+  el.innerHTML = `<p class="muted" style="font-size:13px;margin-bottom:10px">Not live yet. On launch day, paste the $Nutflix CA (the token's mint address) and press Go live. That's all.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><input id="mintIn" placeholder="Paste the $Nutflix CA…" style="flex:1;min-width:240px;font-family:ui-monospace,monospace;font-size:14px" autocomplete="off" spellcheck="false">
+    <button class="btn" id="goLive">Go live</button></div><div class="err" id="launchErr"></div>`;
+  $("#goLive").onclick = async () => {
+    const mint = $("#mintIn").value.trim(); if (!mint) return;
+    if (!confirm("Go live with this CA?\n\n" + mint + "\n\nIt will be shown to everyone as the official $Nutflix CA.")) return;
+    $("#goLive").disabled = true; $("#launchErr").textContent = "Checking on Solana…";
+    const r = await adminFetch("admin/launch", { method: "POST", body: JSON.stringify({ mint }) });
+    $("#goLive").disabled = false;
+    if (r.ok) loadLaunch(); else $("#launchErr").textContent = LAUNCH_ERR[r.error] || ("Error: " + (r.error || "unknown"));
+  };
 }
 const adminFetch = (route, opts = {}) => fetch("/api/" + route, { ...opts, cache: "no-store",
   headers: { "x-admin-key": KEY, "content-type": "application/json", ...(opts.headers || {}) } }).then(r => r.json().catch(() => ({})));

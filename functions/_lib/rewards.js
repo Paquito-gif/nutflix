@@ -9,7 +9,7 @@
 //   watch = 1 + 2% per video watched (max 3 counted per day), max 2x
 //
 // Settings: NUT_MINT (the $Nutflix mint; empty until launch), NUT_PRICE_USD (optional fixed price;
-// otherwise read from DexScreener and cached 10 minutes), NUT_BUY_URL (optional buy link).
+// otherwise read from DexScreener, then Jupiter, cached 2 minutes), NUT_BUY_URL (optional buy link).
 
 import { isPubkey, rpcClient, tokenBalance } from "./solana.js";
 import { DEFAULT_RPC } from "./payouts.js";
@@ -62,29 +62,42 @@ export function nutConfig(env) {
   };
 }
 
-/** $Nutflix price in USD: NUT_PRICE_USD if set, else DexScreener (most liquid Solana pair), cached 10 minutes in D1. */
+const PRICE_TTL_MS = 2 * 60e3;
+async function getJson(fetcher, url) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 4000);
+  try { const r = await fetcher(url, { signal: ctl.signal }); if (!r.ok) throw new Error("http " + r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+async function dexscreenerPrice(fetcher, token) {
+  const pairs = ((await getJson(fetcher, `https://api.dexscreener.com/latest/dex/tokens/${token}`)).pairs || [])
+    .filter(p => p.chainId === "solana" && p.baseToken && p.baseToken.address === token && Number(p.priceUsd) > 0)
+    .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+  return pairs.length ? Number(pairs[0].priceUsd) : null;
+}
+async function jupiterPrice(fetcher, token) {
+  const j = await getJson(fetcher, `https://lite-api.jup.ag/price/v3?ids=${token}`);
+  const p = Number(j && j[token] && j[token].usdPrice);
+  return p > 0 ? p : null;
+}
+
+/** $Nutflix price in USD: NUT_PRICE_USD if set, else DexScreener (most liquid Solana pair), else Jupiter; cached 2 minutes in D1. */
 export async function nutPriceUsd(env, db, fetcher = fetch) {
   const c = nutConfig(env);
   if (c.fixedPrice) return { price: c.fixedPrice, source: "fixed" };
   if (!c.launched) return { price: null, source: "none" };
+  const key = "nut_price:" + c.token;
   await db.prepare("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)").run();
-  const cached = await db.prepare("SELECT v, at FROM kv WHERE k = 'nut_price'").first();
-  if (cached && Date.now() - cached.at < 10 * 60e3) return { price: Number(cached.v), source: "dexscreener" };
-  try {
-    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 4000);
-    const r = await fetcher(`https://api.dexscreener.com/latest/dex/tokens/${c.token}`, { signal: ctl.signal });
-    clearTimeout(t);
-    const pairs = ((await r.json()).pairs || [])
-      .filter(p => p.chainId === "solana" && p.baseToken && p.baseToken.address === c.token && Number(p.priceUsd) > 0)
-      .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
-    if (!pairs.length) throw new Error("no pair");
-    const price = Number(pairs[0].priceUsd);
-    await db.prepare("INSERT INTO kv (k, v, at) VALUES ('nut_price', ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at")
-      .bind(String(price), Date.now()).run();
-    return { price, source: "dexscreener" };
-  } catch {
-    return cached ? { price: Number(cached.v), source: "dexscreener (stale)" } : { price: null, source: "unavailable" };
+  const cached = await db.prepare("SELECT v, at FROM kv WHERE k = ?").bind(key).first();
+  if (cached && Date.now() - cached.at < PRICE_TTL_MS) return { price: Number(cached.v), source: "cache" };
+  let price = null, source = null;
+  for (const [name, get] of [["dexscreener", dexscreenerPrice], ["jupiter", jupiterPrice]]) {
+    try { price = await get(fetcher, c.token); } catch { price = null; }
+    if (price) { source = name; break; }
   }
+  if (!price) return cached ? { price: Number(cached.v), source: "stale" } : { price: null, source: "unavailable" };
+  await db.prepare("INSERT INTO kv (k, v, at) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at")
+    .bind(key, String(price), Date.now()).run();
+  return { price, source };
 }
 
 /** Real on-chain $Nutflix balance of a Solana wallet, in whole tokens. */

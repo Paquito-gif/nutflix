@@ -9,7 +9,7 @@
 //   ADMIN_KEY  secret used by /admin.html to list every account
 
 import { ed25519 } from "../_lib/ed25519.js";
-import { b58decode, isPubkey } from "../_lib/solana.js";
+import { b58decode, isPubkey, rpcClient, TOKEN_PROGRAM, TOKEN_2022_PROGRAM } from "../_lib/solana.js";
 import { queuePayout, payoutsFor, publicPayoutInfo, treasuryInfo, runPayouts, ensurePayoutSchema } from "../_lib/payouts.js";
 import { factors as rewardFactors, nflxFor, nutConfig, nutPriceUsd, nutBalance, tierFor, nextTier, publicTiers, MIN_USD, VIDEOS_PER_DAY } from "../_lib/rewards.js";
 
@@ -194,7 +194,23 @@ function adminDenied(request, adminKey) {
 }
 
 /* ---------- routes ---------- */
-export async function onRequest({ request, env, params }) {
+/* ---------- the $Nutflix CA: wrangler.jsonc NUT_MINT, or pasted once in /admin.html (stored in D1) ---------- */
+let mintMemo = { at: 0, v: "" };
+const KV_TABLE = "CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL)";
+async function withLaunchMint(env) {
+  if ((env.NUT_MINT || "").trim() || !env.DB) return env;
+  if (Date.now() - mintMemo.at > 30e3) {
+    try {
+      await env.DB.prepare(KV_TABLE).run();
+      const r = await env.DB.prepare("SELECT v FROM kv WHERE k = 'nut_mint'").first();
+      mintMemo = { at: Date.now(), v: r ? r.v : "" };
+    } catch { /* keep the last known value */ }
+  }
+  return mintMemo.v ? { ...env, NUT_MINT: mintMemo.v } : env;
+}
+
+export async function onRequest({ request, env: rawEnv, params }) {
+  const env = await withLaunchMint(rawEnv);
   const route = [].concat(params.route || []).join("/");
   const method = request.method;
   const adminKey = typeof env.ADMIN_KEY === "string" ? env.ADMIN_KEY.trim() : "";
@@ -261,6 +277,38 @@ export async function onRequest({ request, env, params }) {
             bal: s.bal, earned: s.earned, profiles: s.profiles.length };
         }),
       });
+    }
+
+    // launch day: paste the $Nutflix CA in the admin page
+    if (route === "admin/launch") {
+      const denied = adminDenied(request, adminKey); if (denied) return denied;
+      const fromConfig = (rawEnv.NUT_MINT || "").trim();
+      if (method === "GET") return json({ mint: nutConfig(env).launched ? nutConfig(env).token : null, source: fromConfig ? "wrangler" : (mintMemo.v ? "admin" : null) });
+      if (method !== "POST") return fail(405, "method_not_allowed");
+      if (fromConfig) return fail(409, "set_in_wrangler");
+      const mint = String((await body(request)).mint || "").trim();
+      await db.prepare(KV_TABLE).run();
+      if (mint === "") {   // undo
+        await db.prepare("DELETE FROM kv WHERE k IN ('nut_mint', 'nut_price')").run();
+        mintMemo = { at: Date.now(), v: "" };
+        return json({ ok: true, mint: null });
+      }
+      if (!isPubkey(mint)) return fail(400, "not_a_solana_address");
+      // make sure it really is a token mint on Solana (catches a pasted wallet or a typo)
+      let info;
+      try {
+        const res = await rpcClient(nutConfig(env).rpc)("getAccountInfo", [mint, { encoding: "jsonParsed", commitment: "confirmed" }]);
+        info = res && res.value;
+      } catch (e) { return fail(502, "solana_unreachable"); }
+      if (!info) return fail(400, "mint_not_found");
+      if (![TOKEN_PROGRAM, TOKEN_2022_PROGRAM].includes(info.owner) || info.data?.parsed?.type !== "mint") return fail(400, "not_a_token_mint");
+      await db.batch([
+        db.prepare("INSERT INTO kv (k, v, at) VALUES ('nut_mint', ?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v, at = excluded.at").bind(mint, Date.now()),
+        db.prepare("DELETE FROM kv WHERE k = 'nut_price'"),
+      ]);
+      mintMemo = { at: Date.now(), v: mint };
+      memo.clear();
+      return json({ ok: true, mint, decimals: info.data.parsed.info.decimals, program: info.owner === TOKEN_2022_PROGRAM ? "Token-2022" : "SPL Token" });
     }
 
     if (route.startsWith("admin/payouts") || route === "admin/treasury") {

@@ -1384,10 +1384,10 @@ async function claimReward(){
 
 /* ---------- rewards panel ---------- */
 const usd = n => "$" + Math.round(n || 0).toLocaleString("en-US");
-/* ---------- the official $Nutflix CA, shown once NUT_TOKEN_ADDRESS is set ---------- */
+/* ---------- the official $Nutflix CA, shown once it is set (admin page or NUT_MINT) ---------- */
 const nutCA = () => (NUTINFO && NUTINFO.launched && NUTINFO.token) || null;
 const caHtml = () => nutCA() ? `<div class="ca-box"><span class="ca-l">$Nutflix CA</span><code>${esc(nutCA())}</code><button class="ca-cp" data-ca="${esc(nutCA())}">Copy</button>${NUTINFO.chartUrl ? `<a class="ca-cp" href="${esc(NUTINFO.chartUrl)}" target="_blank" rel="noopener">Chart</a>` : ""}${NUTINFO.buyUrl ? `<a class="ca-buy" href="${esc(NUTINFO.buyUrl)}" target="_blank" rel="noopener">Buy ↗</a>` : ""}</div>` : "";
-function renderCA(){ const el = document.getElementById("caLand"); if (el) el.innerHTML = caHtml(); }
+function renderCA(){ const el = document.getElementById("caLand"); if (el) el.innerHTML = caHtml() || (NUTINFO ? `<div class="ca-box"><span class="ca-l">$Nutflix CA</span><code style="opacity:.8">Launching soon on Solana 🥜</code></div>` : ""); }
 document.addEventListener("click", async e => {
   const b = e.target.closest(".ca-cp"); if (!b) return;
   try { await navigator.clipboard.writeText(b.dataset.ca); b.textContent = "Copied ✓"; } catch(_) { b.textContent = "Select & copy"; }
